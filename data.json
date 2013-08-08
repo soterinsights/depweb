@@ -1,0 +1,8 @@
+[
+  {"name": "Home"}
+  ,{"name": "Internet", "needs":["Power","Home"]}
+  ,{"name": "Power", "needs": ["Home"]}
+  ,{"name": "Dragon", "needs": ["Power"]}
+  ,{"name": "DNS", "needs":["Internet", "Dragon"]}
+  ,{"name": "Netflix", "needs":["DNS","Internet"]}
+]
