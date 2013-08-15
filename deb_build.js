@@ -106,7 +106,7 @@ $depweb.prototype.updateLinks = function() {
   }
   return this;
 };
-$depweb.prototype.findPaths = function(nodeId, paths, cdepth, maxdepth) {
+/*$depweb.prototype.findPaths = function(nodeId, paths, cdepth, maxdepth) {
   paths = paths || [];
   // {id: NodeId, needs: []}
   cdepth = cdepth || 0;
@@ -127,7 +127,7 @@ $depweb.prototype.findPaths = function(nodeId, paths, cdepth, maxdepth) {
   } catch(e) {
     throw e;
   }
-};
+};*/
 $depweb.prototype.addNode = function(n) {
   if(!(n instanceof $depweb.node)) throw "error! given node is not a node";
   if(typeof this.nodesByName[n.name] != 'undefined') throw "error! This node already exists!";  
@@ -194,43 +194,50 @@ $depweb.prototype.updateNode = function(n, callback) {
   console.log("post delete links", self.links.filter(function(d) {return typeof d != 'undefined';}).length);
 
   self.nodesByName[n.name] = n;
-  /*for(var i in self._hidden.links) {
-    var l = self._hidden.links[i];
-    deletedlinks.forEach(function(d) {
-      if(l.source.nid == n.nid && l.target.nid == d) {
-        delete l;
-      }
-    });
-  }*/
-  /*for(var i in this._hidden.links) {
-    console.log(i.match(r));
-    continue;
-    if(!r.test(i)) {
-      var l = this._hidden.links[i];
-      deletednode.push({source: l.source.nid.toString(), target: l.target.nid.toString()});
-      delete this._hidden.links[i];
-    }
-  }
-  console.log("deletednode.length", deletednode.length);
-  if(deletednode.length > 0) {
-    var offset = 0;
-    for(var i in self.links) {
-      for(var j in deletednode) {
-        if(self.links[i].source.nid == deletednode[j].source
-            && self.links[i].target.nid == deletednode[j].target) {
-          var tmp = self.links.splice(i - offset, 1);
-          console.log("tmp, dn", tmp, deletednode[j]);
-          //offset++;
-        }
-      }
-    }
-  }*/
   self.updateLinks();
-  //if(typeof callback == 'function') setTimeout(callback.bind({}, null, deletednode), 0);
   if(typeof callback == 'function') callback(null, deletedlinks, self);
   return self;
 }
+$depweb.prototype.dep2array = function(nid, list, cur_depth, max_depth) {
+  //get the dependencies of a given node 
+  list = list || [];
+  cur_depth = cur_depth || 0;
+  max_depth = max_depth || 10;
+  if(cur_depth > max_depth) return; //stop the madness
 
+  for(var i in this.links) {
+    if(this.links[i].source_nid == nid) {
+      list.push(this.links[i]);
+      this.dep2array(this.links[i].target_nid, list, cur_depth, max_depth);
+    }
+  }
+
+  return list;
+}
+$depweb.prototype.traverseDepTree = function(nid, callback, cur_depth, max_depth) {
+  cur_depth = cur_depth || 0;
+  max_depth = max_depth || 10;
+  if(typeof callback != 'function') throw "[traverseDepTree needs to have a callback]";
+  var needs = this.nodes[nid].needsById;
+
+  for(var i in needs) {
+    callback(this.nodes[needs[i]], this.nodes[nid], cur_depth);
+    this.traverseDepTree(needs[i], callback, cur_depth++, max_depth, this.nodes[nid]);
+  }
+};
+$depweb.prototype.traverseChildTree = function(nid, callback, cur_depth, max_depth) {
+  cur_depth = cur_depth++ || 0;
+  max_depth = max_depth || 10;
+  if(typeof callback != 'function') throw "[traverseChildTree needs to have a callback]";
+
+  for(var i in this.links) {
+    if(this.links[i].target_nid == nid) {
+      var cid = this.links[i].source_nid;
+      callback(this.nodes[cid], this.nodes[nid], cur_depth);
+      this.traverseDepTree(cid, callback, cur_depth, max_depth, this.nodes[nid]);
+    }
+  }
+}
 $depweb.prototype.getNode = function(id) {
   if((/^[0-9]+$/).test(id)) {
     return this.node[id];
