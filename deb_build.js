@@ -201,7 +201,7 @@ $depweb.prototype.updateNode = function(n, callback) {
 $depweb.prototype.dep2array = function(nid, list, cur_depth, max_depth) {
   //get the dependencies of a given node 
   list = list || [];
-  cur_depth = cur_depth || 0;
+  cur_depth = cur_depth+1 || 0;
   max_depth = max_depth || 10;
   if(cur_depth > max_depth) return; //stop the madness
 
@@ -215,18 +215,18 @@ $depweb.prototype.dep2array = function(nid, list, cur_depth, max_depth) {
   return list;
 }
 $depweb.prototype.traverseDepTree = function(nid, callback, cur_depth, max_depth) {
-  cur_depth = cur_depth || 0;
+  cur_depth = cur_depth+1 || 0;
   max_depth = max_depth || 10;
   if(typeof callback != 'function') throw "[traverseDepTree needs to have a callback]";
   var needs = this.nodes[nid].needsById;
 
   for(var i in needs) {
     callback(this.nodes[needs[i]], this.nodes[nid], cur_depth);
-    this.traverseDepTree(needs[i], callback, cur_depth++, max_depth, this.nodes[nid]);
+    this.traverseDepTree(needs[i], callback, cur_depth, max_depth, this.nodes[nid]);
   }
 };
 $depweb.prototype.traverseChildTree = function(nid, callback, cur_depth, max_depth) {
-  cur_depth = cur_depth++ || 0;
+  cur_depth = cur_depth+1 || 0;
   max_depth = max_depth || 10;
   if(typeof callback != 'function') throw "[traverseChildTree needs to have a callback]";
 
