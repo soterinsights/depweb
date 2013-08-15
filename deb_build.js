@@ -3,6 +3,11 @@ var $depweb = function() {
   //this.links = [];
   Object.defineProperty(this, "links", {enumerable:false, writable:true, value: []});
   Object.defineProperty(this, "nodesByName", {enumerable:false, writable:true, value: {}});
+  Object.defineProperty(this, "_hidden", {
+    enumerable: false
+    ,writable: true
+    ,value: {}
+  })
 };
 $depweb.node = function node(name, group, needs) {
   var self = this;
@@ -34,20 +39,22 @@ $depweb.node = function node(name, group, needs) {
       if(this.nid === null || this.parent === null || this.parent.links === null) return [];
       var ta = [];
       for(var i in this.parent.links) {
-        var source = this.parent.links[i].source.nid.toString() || this.parent.links[i].source;
-        var target = this.parent.links[i].target.nid.toString() || this.parent.links[i].target;
+        var source = this.parent.links[i].source; //.nid || this.parent.links[i].source;
+        var target = this.parent.links[i].target; //.nid || this.parent.links[i].target;
+        if(typeof target != 'number') continue;
         if(source == this.nid) ta.push(target);
       }
       return ta;
     }
-  });Object.defineProperty(this, "dependents", {
+  });
+  Object.defineProperty(this, "dependents", {
     enumerable: false
     ,get: function() {
       if(this.nid === null || this.parent === null || this.parent.links === null) return [];
       var ta = [];
       for(var i in this.parent.links) {
-        var source = this.parent.links[i].source.nid.toString() || this.parent.links[i].source.toString();
-        var target = this.parent.links[i].target.nid.toString() || this.parent.links[i].target.toString();
+        var source = this.parent.links[i].source; //.nid || this.parent.links[i].source.toString();
+        var target = this.parent.links[i].target; //.nid || this.parent.links[i].target.toString();
         if(target == this.nid) ta.push(source);
       }
       return ta;
@@ -65,6 +72,8 @@ $depweb.node.fromObj = function(obj) {
 $depweb.link = function(source, target) {
   this.source = source;
   this.target = target;
+  this.source_nid = source;
+  this.target_nid = target;
 }
 $depweb.fromArray = function(rawArray) {
   var newObj = new $depweb();
@@ -82,23 +91,146 @@ $depweb.fromArray = function(rawArray) {
   return newObj;
 };
 $depweb.prototype.updateLinks = function() {
-  this.links = [];
+  //this.links = [];
+  if(typeof this._hidden.links == 'undefined') this._hidden.links = {};
   for(var i in this.nodes) {
     var needs = this.nodes[i].needsById;
     for(var j in needs) {
-      this.links.push(new $depweb.link(this.nodes[i].nid, needs[j]));
+      var id = this.nodes[i].nid + ":" + this.nodes[needs[j]].nid;
+      var tlink = (new $depweb.link(this.nodes[i].nid, needs[j]));
+      if(typeof this._hidden.links[id] == 'undefined') {
+        this.links.push(tlink)
+      }
+      this._hidden.links[id] = tlink;
     }
   }
   return this;
 };
+$depweb.prototype.findPaths = function(nodeId, paths, cdepth, maxdepth) {
+  paths = paths || [];
+  // {id: NodeId, needs: []}
+  cdepth = cdepth || 0;
+  maxdepth = maxdepth || 100;
+  if(cdepth >= maxdepth) return;
+
+  try {
+    for(var i in this.nodes[nodeId].needs) {
+      paths.push({
+        source: nodeId
+        ,target: this.nodesByName[this.nodes[nodeId].needs[i]].nid
+      });
+      try { 
+        var t = this.findPaths(this.nodesByName[this.nodes[nodeId].needs[i]].nid, paths, cdepth++, maxdepth);
+      } catch(e) {}
+    }
+    return paths;
+  } catch(e) {
+    throw e;
+  }
+};
 $depweb.prototype.addNode = function(n) {
   if(!(n instanceof $depweb.node)) throw "error! given node is not a node";
+  if(typeof this.nodesByName[n.name] != 'undefined') throw "error! This node already exists!";  
   n.nid = this.nodes.length;
   n.parent = n.parent || this;
   this.nodes.push(n);
   this.nodesByName[n.name] = n;
   return this;
 }
+
+$depweb.prototype.updateNode = function(n, callback) {
+  var self = this;
+  if(!(n instanceof $depweb.node)) throw "error! given node is not a node";
+  if(typeof n.nid == 'undefined' && typeof this.nodesByName[n.name] == 'undefined') { return this.addNode(n); }
+  n.nid = n.nid || this.nodesByName[n.name].nid;
+
+  var r = new RegExp("({source}:[0-9]+|[0-9]+:{source})".replace("{source}", n.nid), "i");
+  var deletedlinks = [];
+  var previousneeds = {};
+  this.links.forEach(function(d) {
+    if(d.source_nid == n.nid) previousneeds[self.nodes[d.target_nid].name] = 0;
+  });
+  n.needs.forEach(function(d) { 
+    if(typeof previousneeds[d] != 'undefined') previousneeds[d]++;
+  });
+  for(var i in previousneeds) {
+    try {
+      if(previousneeds[i] == 0) deletedlinks.push({source: n.nid, target: self.nodesByName[i].nid});
+    } catch(e) {
+      console.log("i, e", i, e);
+    }
+  }
+
+  var tf = function(sid, aro, dl) {
+    //console.log("tf", sid, aro, dl);
+    for(var i in aro) {
+      //console.log("i in aro", i);
+      dl.forEach(function(d) {
+        //console.log("aro[i], d", aro[i], d);
+        if((aro[i].source_nid) == d.source &&
+           (aro[i].target_nid) == d.target) {
+          console.log("deleting", i, aro[i]);
+          //delete aro[i];
+          if(aro instanceof Array) {
+            aro.splice(i, 1);
+          } else {
+            delete aro[i];
+          }
+        }
+      });
+    }
+
+    if(aro instanceof Array) {
+      //aro = aro.filter(function(d) { return typeof d != 'undefined'; });
+    } 
+
+    return aro;
+  }
+  console.log(previousneeds);
+  console.log(deletedlinks);
+  console.log("pre delete links", self.links.length);
+  self._hidden.links = tf(n.nid, self._hidden.links, deletedlinks);
+  self.links = tf(n.nid, self.links, deletedlinks);
+  console.log("post delete links", self.links.filter(function(d) {return typeof d != 'undefined';}).length);
+
+  self.nodesByName[n.name] = n;
+  /*for(var i in self._hidden.links) {
+    var l = self._hidden.links[i];
+    deletedlinks.forEach(function(d) {
+      if(l.source.nid == n.nid && l.target.nid == d) {
+        delete l;
+      }
+    });
+  }*/
+  /*for(var i in this._hidden.links) {
+    console.log(i.match(r));
+    continue;
+    if(!r.test(i)) {
+      var l = this._hidden.links[i];
+      deletednode.push({source: l.source.nid.toString(), target: l.target.nid.toString()});
+      delete this._hidden.links[i];
+    }
+  }
+  console.log("deletednode.length", deletednode.length);
+  if(deletednode.length > 0) {
+    var offset = 0;
+    for(var i in self.links) {
+      for(var j in deletednode) {
+        if(self.links[i].source.nid == deletednode[j].source
+            && self.links[i].target.nid == deletednode[j].target) {
+          var tmp = self.links.splice(i - offset, 1);
+          console.log("tmp, dn", tmp, deletednode[j]);
+          //offset++;
+        }
+      }
+    }
+  }*/
+  self.updateLinks();
+  //if(typeof callback == 'function') setTimeout(callback.bind({}, null, deletednode), 0);
+  if(typeof callback == 'function') callback(null, deletedlinks, self);
+  return self;
+}
+
 $depweb.prototype.getNode = function(id) {
   if((/^[0-9]+$/).test(id)) {
     return this.node[id];
