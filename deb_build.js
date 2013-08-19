@@ -60,8 +60,13 @@ $depweb.node = function node(name, group, needs) {
       return ta;
     }
   });
-  this.__defineGetter__("group", (function() { return this._hidden.group || 1;}).bind(this));
-  this.__defineSetter__("group", (function(val) { this._hidden.group = parseInt((/^[0-9]+$/.test(val)) ? val.toString() : null || 1); }).bind(this));
+  //this.__defineGetter__("group", (function() { return this._hidden.group || 1;}).bind(this));
+  //this.__defineSetter__("group", (function(val) { this._hidden.group = parseInt((/^[0-9]+$/.test(val)) ? val.toString() : null || 1); }).bind(this));
+  Object.defineProperty(this, 'group', {
+    enumerable: false
+    ,get: (function() { return this._hidden.group || 1;}).bind(this)
+    ,set: (function(val) { this._hidden.group = parseInt((/^[0-9]+$/.test(val)) ? val.toString() : null || 1); }).bind(this)
+  });
   this.name = name;
   this.group = (typeof group != 'undefined' && typeof group != '[]') ? parseInt(group) : 1;
   this.needs = ((typeof group != 'undefined' && typeof group == '[]') ? group : needs) || [];
@@ -94,6 +99,7 @@ $depweb.prototype.updateLinks = function() {
   //this.links = [];
   if(typeof this._hidden.links == 'undefined') this._hidden.links = {};
   for(var i in this.nodes) {
+    
     var needs = this.nodes[i].needsById;
     for(var j in needs) {
       var id = this.nodes[i].nid + ":" + this.nodes[needs[j]].nid;
@@ -128,13 +134,30 @@ $depweb.prototype.updateLinks = function() {
     throw e;
   }
 };*/
-$depweb.prototype.addNode = function(n) {
-  if(!(n instanceof $depweb.node)) throw "error! given node is not a node";
-  if(typeof this.nodesByName[n.name] != 'undefined') throw "error! This node already exists!";  
+$depweb.prototype.addNode = function(n, callback) {
+  if(!(n instanceof $depweb.node)) {
+    if(typeof callback == 'function') callback("error! given node is not a node", n);
+    return this; //throw "error! given node is not a node";
+  }
+  if(typeof this.nodesByName[n.name] != 'undefined') {
+    //if(typeof callback == 'function') callback("error! This node already exists", n);
+    //this.updateNode(n, callback);
+    return this; //throw "error! This node already exists!";
+  }
+  var self = this;
   n.nid = this.nodes.length;
   n.parent = n.parent || this;
   this.nodes.push(n);
   this.nodesByName[n.name] = n;
+  n.needs.forEach(function(d) {
+    try {
+      if(typeof self.nodesByName[d] == 'undefined') {
+        self.addNode(new $depweb.node(d));
+      }
+    } catch(e) {
+      //self.addNode(new $depweb.node(d));
+    }
+  });
   return this;
 }
 
@@ -192,7 +215,7 @@ $depweb.prototype.updateNode = function(n, callback) {
   self._hidden.links = tf(n.nid, self._hidden.links, deletedlinks);
   self.links = tf(n.nid, self.links, deletedlinks);
   console.log("post delete links", self.links.filter(function(d) {return typeof d != 'undefined';}).length);
-
+  
   self.nodesByName[n.name] = n;
   self.updateLinks();
   if(typeof callback == 'function') callback(null, deletedlinks, self);
