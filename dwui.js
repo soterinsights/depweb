@@ -27,8 +27,6 @@ $dwui.preloadForm = function(jsondata, opts) {
 $dwui.prototype.ko = {};
 $dwui.prototype.form = null;
 $dwui.prototype.removeNeed = function(node, need) {
-  console.log(arguments);
-  console.log("index:", node.needs.indexOf(need));
   var ind = node.needs.indexOf(need);
   if(ind != -1) {
     node.needs.splice(ind, 1);
@@ -37,6 +35,36 @@ $dwui.prototype.removeNeed = function(node, need) {
     this.graph.updateData(this.graph.data.nodesByName[node.name()]);
   }
 };
+$dwui.prototype.addNeed = function(n, d, e) {
+
+  var el = $(e.target);
+  if(e.keyCode == 13) {
+    var newneed =  el.val();
+    n.needs.push(newneed);
+    this.graph.data.nodesByName[n.name()].needs.push(newneed);
+    this.graph.updateData(this.graph.data.nodesByName[n.name()]);
+    this.graph.redraw();
+    el.val('');
+    return;
+  }
+  if(!(/.+/).test(String.fromCharCode(e.keyCode))) { return; }
+  var c = el.val();
+  el.val(c + String.fromCharCode(e.charCode));
+}
+$dwui.prototype.addNode = function(d, e) {
+  var el = $(e.target);
+  if(e.keyCode == 13) {
+    var newnode = new $depweb.node(el.val());
+    this.graph.data.addNode(newnode);
+    this.ko.nodes.push(ko.mapping.fromJS(newnode));
+    el.val('');
+    return;
+  }
+  if(!(/.+/).test(String.fromCharCode(e.keyCode))) { return; }
+
+  var c = el.val();
+  el.val(c + String.fromCharCode(e.charCode));
+}
 $dwui.prototype.exportform = function() {
   ko.mapping.toJSON(this.ko.dw_gdata);
 };
