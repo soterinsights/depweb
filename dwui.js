@@ -17,7 +17,7 @@ $dwui.preloadForm = function(jsondata, opts) {
   })*/
   var n = new $dwui();
 
-  var graph = n.graph = new $depweb_graph(opts.element, opts.width, opts.height, $depweb.fromArray(jsondata));
+  var graph = n.graph = this.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata));
   n.ko.nodes = ko.mapping.fromJS(graph.data.nodes); //ko.observableArray(jsondata);
   //n.ko.nodes = ;
   //n.ko.links = ko.mapping.fromJS(graph.data.links);
@@ -40,9 +40,15 @@ $dwui.prototype.addNeed = function(n, d, e) {
   var el = $(e.target);
   if(e.keyCode == 13) {
     var newneed =  el.val();
-    n.needs.push(newneed);
-    this.graph.data.nodesByName[n.name()].needs.push(newneed);
-    this.graph.updateData(this.graph.data.nodesByName[n.name()]);
+    //n.name(); .needs.set(newneed);
+    this.graph.data.nodesByGuid[n.guid()].needs.set(newneed);
+    //this.graph.data.nodesByName[n.name()].needs.push(newneed);
+    //this.graph.updateData(this.graph.data.nodesByName[n.name()]);
+    this.graph.data.updateLinks();
+    //ko.mapping.fromJS(this.graph.data.nodes, this.ko);
+    //ko.mapping.fromJS({nodes: this.graph.data.nodes}, this.ko);
+    ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
+    //n.needs.list.push(ko.observable(newneed));
     this.graph.redraw();
     el.val('');
     return;
@@ -54,9 +60,11 @@ $dwui.prototype.addNeed = function(n, d, e) {
 $dwui.prototype.addNode = function(d, e) {
   var el = $(e.target);
   if(e.keyCode == 13) {
-    var newnode = new $depweb.node(el.val());
+    var newnode = new $dwcore.node(el.val());
     this.graph.data.addNode(newnode);
     this.ko.nodes.push(ko.mapping.fromJS(newnode));
+    this.graph.redraw();
+    el.val('');
     el.val('');
     return;
   }

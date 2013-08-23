@@ -1,6 +1,6 @@
 var $depweb_graph = function(node, width, height, dataObj) {
   var self = this;
-  this.data = dataObj || new $depweb();
+  this.data = dataObj || new $dwcore();
   this.color = d3.scale.category20();
 
   this.graph = d3.layout.force()
@@ -58,6 +58,7 @@ $depweb_graph.prototype.addData = function(newNode) {
 
 $depweb_graph.prototype.updateData = function(mnode) {
   var self = this;
+  return this;
   this.data.updateNode(mnode, (function(err, dn, ndata) {
     console.log("args", arguments);
     dn = dn || [];
@@ -113,6 +114,7 @@ $depweb_graph.prototype.redraw = function() {
 
   var nodes = this.svg.selectAll('.node')
                 .data(self.graph.nodes());
+
   self.graph.start();
   //console.log(this.graph.links());
   //return;
@@ -120,40 +122,39 @@ $depweb_graph.prototype.redraw = function() {
   links.exit().remove();
   links.enter().append("line")
       .attr("class", "link")
-      .attr("dw_dependency", function(d) { return d.source_nid; })
-      .attr("dw_dependent",  function(d) {return d.target_nid;  })
+      .attr("dw_dependency", function(d) { return d.source.guid; })
+      .attr("dw_dependent",  function(d) {return d.target.guid;  })
       .style("stroke-width", '2px');//function(d) { return Math.sqrt(d.value); });
 
   nodes.exit().remove();
   nodes.enter().append("g")
-    .attr('dw_nid', function(d) { return d.nid; })
+    .attr('dw_guid', function(d) { return d.guid; })
     .attr("class", "node")
     .attr('dw_dependencies', function(d) { return d.dependencies.join(" "); })
     .attr('dw_dependents', function(d) { return d.dependents.join(" "); })
     .call(self.graph.drag)
     .on('mouseover', function() {
-      var nid = d3.select(this).attr('dw_nid').toString();
-      d3.selectAll('G[dw_dependents~="'+nid+'"] circle')
+      var guid = d3.select(this).attr('dw_guid').toString();
+      d3.selectAll('G[dw_dependents~="'+guid+'"] circle')
         .transition(500)
         .attr('r', 10)
         .style("fill", "cyan");
-      d3.selectAll('.link[dw_dependent="'+nid+'"]')
+      d3.selectAll('.link[dw_dependent="'+guid+'"]')
         .transition(500)
         .style('stroke', 'green')
         .style('stroke-width', '6px');
 
-      d3.selectAll('G[dw_dependencies~="'+nid+'"] circle')
+      d3.selectAll('G[dw_dependencies~="'+guid+'"] circle')
         .transition(500)
         .attr('r', 10)
         .style("fill", "green");  
-      d3.selectAll('.link[dw_dependency="'+nid+'"]')
+      d3.selectAll('.link[dw_dependency="'+guid+'"]')
         .transition(500)
         .style('stroke', 'cyan')
         .style('stroke-width', '6px');
-      self.data.traverseDepTree(nid, function(n, p ,d) {
+      self.data.recDependencies(guid, function(e, n, p ,d) {
         if(d == 0) return;
-        
-        d3.selectAll('.link[dw_dependent="'+n.nid+'"]')
+        d3.selectAll('.link[dw_dependent="'+n.guid+'"]')
         .transition(500)
         .style('stroke', '#FF1493');
       })
