@@ -24,6 +24,20 @@ $dwui.preloadForm = function(jsondata, opts) {
   return n;
 };
 
+$dwui.addNodePrompt = function(n, e) {
+  var self = this;
+  var nf = $('#res .addNodePrompt').clone().appendTo(e.srcElement);
+  $('.btn', nf).click(function() {
+    var newneed = $('.needname', nf).val();
+    nf.remove();
+    self.graph.data.nodesByGuid[n.guid()].needs.set(newneed);
+    self.graph.data.updateLinks();
+    ko.mapping.fromJS(self.graph.data.nodes, self.ko.nodes);
+    self.graph.redraw();
+  });
+}
+
+
 $dwui.prototype.ko = {};
 $dwui.prototype.form = null;
 $dwui.prototype.removeNeed = function(node, need) {
