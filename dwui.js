@@ -27,28 +27,19 @@ $dwui.preloadForm = function(jsondata, opts) {
 $dwui.prototype.ko = {};
 $dwui.prototype.form = null;
 $dwui.prototype.removeNeed = function(node, need) {
-  var ind = node.needs.indexOf(need);
-  if(ind != -1) {
-    node.needs.splice(ind, 1);
-    this.ko.nodes.valueHasMutated();
-    this.graph.data.nodesByName[node.name()].needs.splice(ind, 1);
-    this.graph.updateData(this.graph.data.nodesByName[node.name()]);
-  }
+  this.graph.data.nodesByGuid[node.guid()].needs.remove(need);
+  this.graph.data.updateLinks();
+  ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
+  this.graph.redraw();
 };
 $dwui.prototype.addNeed = function(n, d, e) {
 
   var el = $(e.target);
   if(e.keyCode == 13) {
     var newneed =  el.val();
-    //n.name(); .needs.set(newneed);
     this.graph.data.nodesByGuid[n.guid()].needs.set(newneed);
-    //this.graph.data.nodesByName[n.name()].needs.push(newneed);
-    //this.graph.updateData(this.graph.data.nodesByName[n.name()]);
     this.graph.data.updateLinks();
-    //ko.mapping.fromJS(this.graph.data.nodes, this.ko);
-    //ko.mapping.fromJS({nodes: this.graph.data.nodes}, this.ko);
     ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
-    //n.needs.list.push(ko.observable(newneed));
     this.graph.redraw();
     el.val('');
     return;
@@ -62,9 +53,8 @@ $dwui.prototype.addNode = function(d, e) {
   if(e.keyCode == 13) {
     var newnode = new $dwcore.node(el.val());
     this.graph.data.addNode(newnode);
-    this.ko.nodes.push(ko.mapping.fromJS(newnode));
+    ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
     this.graph.redraw();
-    el.val('');
     el.val('');
     return;
   }
@@ -74,7 +64,11 @@ $dwui.prototype.addNode = function(d, e) {
   el.val(c + String.fromCharCode(e.charCode));
 }
 $dwui.prototype.exportform = function() {
-  ko.mapping.toJSON(this.ko.dw_gdata);
+  var self = this;
+  var map = {
+    ignore: ["x","y","px","py","weight"]
+  }
+  return ko.mapping.toJSON(self.ko.nodes, map);
 };
 $dwui.prototype.refresh = function() {
   ko.applyBindings(this.ko);
