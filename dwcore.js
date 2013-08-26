@@ -102,8 +102,8 @@ Object.defineProperty($dwcore.prototype, "procDQueue", {
   ,value: function() {
     var self = this;
     this._h.dqueue.forEach(function(d) {
-      self._removeNode(d.name);
-      if(typeof d.callback == 'function') d.callback(null, d.name);
+      self._removeNode(d.name, d.callback);
+      //if(typeof d.callback == 'function') d.callback(null, d.name);
     });
     this._h.dqueue = [];
     return;
@@ -135,9 +135,9 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
   }
 });
 $dwcore.prototype.updateLinks = function() {
-  this.procCQueue();
-  this.procDLQueue();
   this.procDQueue();
+  this.procDLQueue();
+  this.procCQueue();
   if(typeof this._h.links == 'undefined') this._h.links = {};
   for(var i in this.nodesByGuid) {
     //var needs = this.nodes[i].needsByIndex;
@@ -351,3 +351,91 @@ Object.defineProperty($dwcore.needs.prototype, "list", {
   ,get: function() {return this._h.items.filter(function() {return true;})} 
 });
 ///ends Needs
+
+///needitem
+$dwcore.needitem = function(name, flag) {
+  flags = flags || {};
+  flags.direct = flags.direct || true;
+  flags.peer = flags.peer || false;
+  flags.failover = flags.failover || false;
+  flags.service = flags.service || '';
+  this.name = name;
+  this.flag = (function() {
+    if(flags.direct) return 'direct';
+    if(flags.failover) return 'failover';
+    if(flags.peer) return 'peer';
+  })();
+  this.service = flags.service;
+};
+///end needitem
+
+///needlist
+$dwcore.needlist = function() {};
+$dwcore.needlist.init = function(needs) {
+  if(needs instanceof Array) {
+    var nl = new $dwcore.needlist();
+    needs.forEach(function(d) {
+      nl.add(d);
+    });
+    return nl;
+  }
+  return;
+};
+
+Object.defineProperty($dwcore.needlist.prototype, "_h", { enumerable: false, writable: true, 
+  value: {
+    needs: {direct: {}, failover: {}, peer: {}}
+    ,deleted: []
+  }
+});
+
+$dwcore.needlist.prototype.add = function(need, callback) {
+  if(!(need instanceof $dwcore.needitem) && typeof callback == 'function') {
+    callback({msg: "[needlist.add: need is not an instance of needitem]"});
+    return this;
+  }
+
+  this._h.needs[need.flag][need.name] = need;
+  return this;
+};
+
+$dwcore.needlist.prototype.list = function(filter) {
+  var self = this;
+  filter = (function() {
+    if(filter instanceof Array) return filter;
+    if(typeof filter == 'string') return [filter];
+    return null;
+  })() || ["direct", "failover", "peer"];
+  var r = {};
+  filter.forEach(function(d) {
+    if(typeof self._h.needs[d] == 'undefined') return;
+    for(var k in self._h.needs[d]) {
+      if(typeof r[self._h.needs[d][k]] == 'undefined') return;
+      r[self._h.needs[d][k].name] = self._h.needs[d][k];
+    }
+  });
+  var rl = [];
+  for(var k in r) {
+    rl.push(r[k]);
+  }
+
+  return rl;
+};
+
+$dwcore.needlist.prototype.remove = function(need, callback) {
+  var self = this;
+  try {
+    var tmp = need;
+    delete self._h.needs[need.flag][need.name];
+    self._h.deleted.push(tmp);
+    callback(null, need);
+  } catch(e) {
+    callback({
+      msg: "[needlist.remove: need does not exist.]"
+      ,need: need
+      ,exception: e
+    });
+  }
+  return this;
+};
+///end needlist

@@ -19,7 +19,7 @@ html, body {
   margin: 0px; /*5%;
   width: 100%;
   height: 100%;*/
-  padding-top: 30px;
+  padding-top: 10px;
 }
 div#graph {
   width: 90%;
@@ -55,6 +55,10 @@ div#graph {
 }
 #node_table tr td span.beleted {
   font-size: .8em;
+}
+.json_data {
+  width: 100%;
+  min-height: 400px;
 }
 </style>
 <body>
@@ -92,28 +96,40 @@ div#graph {
       <div class="navbar">
         <div class="navbar-inner">
           <ul class="nav">
-            <li><a href="#">Create</a></li>
-            <li><a href="#">Import/Advanced</a></li>
-            <li><a href="#">Export</a></li>
+            <li><a href="#" data-bind="click: $root.self.clear.bind($root.self)">New/Clear</a></li>
+            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'uiinputs')" >Easy</a></li>
+            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'import_adv')" >Import/Advanced</a></li>
+            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'export')" >Export</a></li>
           </ul>
         </div>
       </div>
-      <div style="border:1px solid black">
+      <div class="input_methods" id="uiinputs">
         <form id="f_nodes">
           <script type="text/html" id="dwui_nodes">
             <tr>
-              <td>n: <span data-bind="text: node.name"></span></td>
+              <td>n: <span data-bind="text: node.name"></span> <span class="beleted" data-bind="click: $root.self.removeNode.bind($root.self, node)">(X)</span></td>
               <td>
                 <span data-bind="foreach: {data: node.needs.list, as: 'need'}">
-                  <span data-bind="text: need"></span><span class="beleted" data-bind="click: $root.self.removeNeed.bind($root.self, node)">(x)</span>
+                  <span data-bind="text: need"></span><span class="beleted" data-bind="click: $root.self.removeNeed.bind($root.self, node)">(X)</span>
                 </span>
-                <span data-bind="click: $dwui.addNodePrompt.bind($root.self)" class="addneeds">+<span>
+                <span data-bind="click: $dwui.addNeedPrompt.bind($root.self)" class="addneeds">+<span>
               </td>
             </tr>
           </script>
           <table id="node_table" data-bind="template: { name: 'dwui_nodes', foreach: nodes, as: 'node' }">
           </table>
+          <div>
+            <input type="text" class="input-small needname" placeholder="Node Name" data-bind="event: { keypress: $root.self.addNode.bind($root.self) }">
+          </div>
         </form>
+      </div>
+      <div class="input_methods" style="display: none;" id="import_adv">
+        <textarea id="import_text" class="json_data" data-bind="text: $root.self.exportform()"></textarea> <br />
+        <input type="button" value="Import" data-bind="click: $root.self.fromJSON.bind($root.self)">
+      </div>
+      <div class="input_methods" style="display: none;" id="export">
+        <textarea class="json_data" data-bind="text: $root.self.exportform()"></textarea> <br />
+        <div></div>
       </div>
     </div>
     <div class="span8">
@@ -122,113 +138,15 @@ div#graph {
   </div>
 </div> <!-- /container -->
 <div id="res" style="display: none;">
-  <div class="addNodePrompt">
-    <form class="form-inline">
+  <div class="addNeedPrompt">
+    <form class="form-inline" action="javascript:$('button.btn').click();">
       <input type="text" class="input-small needname" placeholder="Node Name">
-      <button type="" class="btn">Add</button>
+      <button type="button" class="btn">Add</button>
     </form>
   </div>
 </div>
-
-<!--<div>
-  <div class="row">
-    <div class='span12'>
-      <div class="row">
-        <div class="span1">Create</div>
-        <div class="span1">Import</div>
-        <div class="span1">Clear</div>
-      </div>
-    </div>
-    <div class="span4" style="display: none">
-      <div id="dw_form">
-        <form id="f_nodes">
-          <script type="text/html" id="dwui_nodes">
-            <div class="row">
-              <div class="span2">N: <span data-bind="text: node.name"></span></div>
-              
-              <div class="span2">
-                <div class="row" data-bind="if: typeof node != 'undefiend'">
-                  <span data-bind="foreach: {data: node.needs.list, as: 'need'}">
-                      <span class="f_need">
-                        <span data-bind="text: need"></span>
-                        <span class="f_need_remove" data-bind="click: $root.self.removeNeed.bind($root.self, node)">Remove</span>
-                      </span>
-                  </span>
-                </div>
-                <div class="row">
-                  <input type="text" data-bind="event: { keypress: $root.self.addNeed.bind($root.self, node) }" />
-                </div>
-              </span>
-            </div>
-          </script>
-          <div data-bind="template: { name: 'dwui_nodes', foreach: nodes, as: 'node' }"></div>
-          <div class="row">
-            <div class="span1"></div>
-            <div class="span2">N: <input type="text" data-bind="event: { keypress: $root.self.addNode.bind($root.self) }" /> <input type="button" value="add" /></div>
-            <div class="span2">
-              <div data-binder="foreach: {data: node.needs, as: 'need'}">
-                <div class="row">
-                  <div class="f_need">
-                    <span data-binder="text: need"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-    <div class="span7">
-      <div id="dw_graph"></div>
-    </div>
-  </div>
-</div>-->
-<script>
-/*
-  somewhat modified from the d3js example http://bl.ocks.org/mbostock/4062045
-*/
-var dwf_recreate = function() {
-  //console.log($('#dw_text').val());
-  try {
-    var width = $('#dw_graph')[0].clientWidth*.9;
-    var height = $('#dw_graph')[0].clientHeight*.9;
-    try { myg.graph.stop(); } catch(e){}
-    //delete myg;
-    myg = null;
-    $('#dw_graph *').remove();
-    myg = new $depweb_graph('#dw_graph', width, height, $dwcore.fromArray(JSON.parse($('#dw_text').val())));
-  } catch(e) {
-    console.log(e.stack);
-  }
-}
-var myg;
-/*$(document).ready(function() {  
-  $.get('./data.json', function(d) {
-    var width = $('#dw_graph')[0].clientWidth*.9;
-    var height = $('#dw_graph')[0].clientHeight*.9;
-    var pd = $depweb.fromArray(d);
-    //debugger;
-    //myg = new $depweb_graph('#dw_graph', width, height, pd);
-  })
-})*/
-</script>
 <script type="text/javascript">
   var dwui;
-  /*setTimeout(function() {
-    console.log(new Date());
-    (function() { var n = new $depweb.node("A night in", 1, ["Home", "Netflix", "Couch"]); myg.addData(n); })();
-  }, 3000 );
-
-  setTimeout(function() {
-    console.log(new Date());
-    (function() { var n = myg.data.nodesByName["A night in"]; n.needs.push("Dragon"); myg.updateData(n); })();
-  }, 5000);
-
-  setTimeout(function() {
-    console.log(new Date());
-    console.log("delete link ");
-    (function() { var n = myg.data.nodesByName["A night in"]; n.needs = n.needs.filter(function(d){ return (d != "Dragon"); }); console.log("new n needs", n.needs); myg.updateData(n); })();
-  }, 7000);*/
 </script>
 </body>
 </html>
