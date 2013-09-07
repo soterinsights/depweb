@@ -161,6 +161,16 @@ $depweb_graph.prototype.redraw = function() {
         .transition(500)
         .style('stroke', 'cyan')
         .style('stroke-width', '6px');
+
+      self.data.recDependents(guid, function(e, n, p ,d) {
+        //if(d == 0) return;
+        if(!n.isTreeDead) return;
+        //d3.selectAll('.link[dw_dependent="'+p.guid+'"]') //[dw_dependency="'+n.guid+'"]
+        d3.select('G[dw_guid="'+ n.guid +'"] circle')
+          .transition(500)
+          .style('fill', 'red');
+      });
+
     })
     .on('mouseout', function() {
       var nid = d3.select(this).attr('dw_nid');

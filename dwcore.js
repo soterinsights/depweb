@@ -272,62 +272,70 @@ $dwcore.node = function(name, opts) {
 
   this.name = name;
   this.guid = opts.guid;
+  this.isDead = false;
   //old way is the bad way!
   //this.needs = new $dwcore.needs(opts.needs.filter(function(){ return true; }), {parent: this});
   this.needs = $dwcore.needlist.fromJS(opts, {parent: this});
   //console.log("new node opts", this.needs);
   this.group = opts.group;
   //console.log("new node", this);
-};
-
-Object.defineProperty($dwcore.node.prototype, "dependencies", {
-  get: function() {
-    var self = this;
-    if(this.parent == null) return [];
-    return this.parent.links.filter(function(d) {
-      var source = d.source;
-      return source.guid == self.guid;
-    }).map(function(d) {
-      return d.target.guid;
-    });
-  }
-});
-Object.defineProperty($dwcore.node.prototype, "dependents", {
-  get: function() {
-    var self = this;
-    return this.parent.links.filter(function(d) {
-      var target = d.target;
-      return target.guid == self.guid;
-    }).map(function(d) {
-      return d.source.guid;
-    });
-  }
-});
-
-//find if node is dead if tree is dead.
-Object.defineProperty($dwcore.node.prototype, "isTreeDead", {
-  enumerable: false,
-  get: function() {
-    //todo hook in needlist
-    if(this.isDead) return true;
-    var self = this;
-    var treedead = false;
-    var checked = {};
-    var peergroupdown = {};
-    this.needs.list(['failover', 'peers']).forEach(function(n) {
-      if(typeof checked[n.flag] == 'undefined') checked[n.flag] = {};
-      if(typeof checked[n.flag][n.name] != 'undefined') return;
-      var dnode = self.parent.nodesByName[n.name]
-      if(typeof peergroupdown[n.service] == 'undefined') peergroupdown[n.service] = false;
-      peergroupdown[n.service] = peergroupdown[n.service] || dnode.isTreeDead;
-    });
-    var isdown = false;
-    for(var i in peergroupdown) {
-      if(peergroupdown[i]) return true;
+  Object.defineProperty(this, "dependencies", {
+    get: function() {
+      var self = this;
+      if(this.parent == null) return [];
+      return this.parent.links.filter(function(d) {
+        var source = d.source;
+        return source.guid == self.guid;
+      }).map(function(d) {
+        return d.target.guid;
+      });
     }
-    return false;
-  }
-});
+  });
+  Object.defineProperty(this, "dependents", {
+    get: function() {
+      var self = this;
+      return this.parent.links.filter(function(d) {
+        var target = d.target;
+        return target.guid == self.guid;
+      }).map(function(d) {
+        return d.source.guid;
+      });
+    }
+  });
+
+  //find if node is dead if tree is dead.
+  Object.defineProperty(this, "isTreeDead", {
+    enumerable: false,
+    get: function() {
+      //todo hook in needlist
+      if(this.isDead) return true;
+      var self = this;
+      var treedead = false;
+      var checked = {};
+      var peergroupdown = {};
+      this.needs.list('direct').forEach(function(n) {
+        treedead = treedead || self.parent.nodesByName[n.name].isTreeDead;
+      });
+
+      if(treedead) {
+        return treedead;
+      }
+
+      this.needs.list(['failover', 'peers']).forEach(function(n) {
+        if(typeof checked[n.flag] == 'undefined') checked[n.flag] = {};
+        if(typeof checked[n.flag][n.name] != 'undefined') return;
+        var dnode = self.parent.nodesByName[n.name]
+        if(typeof peergroupdown[n.service] == 'undefined') peergroupdown[n.service] = false;
+        peergroupdown[n.service] = peergroupdown[n.service] || dnode.isTreeDead;
+      });
+      var isdown = false;
+      for(var i in peergroupdown) {
+        if(peergroupdown[i]) return true;
+      }
+      return false;
+    }
+  });
+};
 $dwcore.node.fromJS = function(obj) {
   return new $dwcore.node(obj.name, obj);
 };
