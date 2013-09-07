@@ -108,6 +108,12 @@ $dwui.prototype.addNode = function(d, e) {
   var c = el.val();
   el.val(c + String.fromCharCode(e.charCode));
 }
+
+$dwui.prototype.markDead = function(n, e) {
+  this.graph.data.nodesByGuid[n.guid()].isDead = !this.graph.data.nodesByGuid[n.guid()].isDead;
+  this.refresh();
+};
+
 $dwui.prototype.exportform = function() {
   var self = this;
   var map = {

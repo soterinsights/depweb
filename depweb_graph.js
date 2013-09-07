@@ -194,9 +194,15 @@ $depweb_graph.prototype.redraw = function() {
     });
   var enodes = this.svg.selectAll('.node:empty')
   enodes.append("circle")
-        .attr("r", 5)
+        .attr("r", function(d) {
+          if(d.isTreeDead) return 7;
+          return 5;
+        })
         .attr("class", "dcircle")
-        .style("fill", function(d) { return self.color(d.group); })
+        .style("fill", function(d) { 
+          if(d.isTreeDead) return 'red';
+          return self.color(d.group); 
+        })
         .append("title")
           .text(function(d) { return d.name; });
   enodes.append("text")

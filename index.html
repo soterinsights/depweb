@@ -120,7 +120,11 @@ div#graph {
         <form id="f_nodes">
           <script type="text/html" id="dwui_nodes">
             <tr>
-              <td>n: <span data-bind="text: node.name"></span> <span class="beleted" data-bind="click: $root.self.removeNode.bind($root.self, node)">(X)</span></td>
+              <td>
+                n: <span data-bind="text: node.name"></span>
+                <span class="itsdeadjim" data-bind="click: $root.self.markDead.bind($root.self)">(d)</span>
+                <span class="beleted" data-bind="click: $root.self.removeNode.bind($root.self, node)">(X)</span>
+              </td>
               <td>
                 <span data-bind="foreach: {data: node.needs, as: 'need'}">
                   <span data-bind="text: need"></span><span class="beleted" data-bind="click: $root.self.removeNeed.bind($root.self, node)">(X)</span>
