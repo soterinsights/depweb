@@ -1,5 +1,6 @@
+"use strict";
 ///CORE
-$dwcore = function () {
+var $dwcore = function () {
   this.nodes = [];
   this.nodeByName = {};
   this.nodesByGuid = {};
@@ -28,11 +29,15 @@ $dwcore.prototype.addNode = function(node, callback) {
   this.nodes.push(node);
   this.nodesByName[node.name] = node;
   this.nodesByGuid[node.guid] = node;
-  var needlist = node.needs.list;
-  for(var i in needlist) {
-    if(typeof this.nodeByName[needlist[i]] == 'undefined') this._h.cqueue.push(needlist[i]);
+  var needlista = node.needs.list();
+  for(var i in needlista) {
+    if(typeof this.nodeByName[needlista[i].name] == 'undefined') {
+      //console.log("addnode adding cqueue item %s to node %s", needlista[i].name, node.name);
+      this._h.cqueue.push(needlista[i].name);
+    }
   }
 
+  //console.log("$dwcore.addnode: ", node.name, needlist);
   return this;
 };
 $dwcore.prototype.removeNode = function(n, callback) {
@@ -91,7 +96,7 @@ Object.defineProperty($dwcore.prototype, "procCQueue", {
   enumerable: false
   ,value: function() {
     for(var i in this._h.cqueue) {
-      this.addNode(new $dwcore.node(this._h.cqueue[i]));
+      this.addNode(new $dwcore.node(this._h.cqueue[i]), {parent: this});
     }
     this._h.cqueue = [];
     return this;
@@ -115,9 +120,9 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
     var self = this;
     this.nodes.forEach(function(source, i) {
       source.needs._h.deleted.forEach(function(dn, i) {
-        var target = self.nodesByName[dn];
+        var target = self.nodesByName[dn.name];
         var id = source.guid + ":" + target.guid;
-        console.log("deleteing ", id)
+        //console.log("deleteing ", id)
         delete self._h.links[id];
         var dlist = [];
         self.links.forEach(function(l, i) {
@@ -125,7 +130,7 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
         });
         var offset = 0;
         dlist.forEach(function(d) {
-          console.log("deleting link", self.links[d-(offset)]);
+          //console.log("deleting link", self.links[d-(offset)]);
           self.links.splice(d-(offset++), 1);
         });
       });
@@ -135,17 +140,17 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
   }
 });
 $dwcore.prototype.updateLinks = function() {
-  this.procDQueue();
   this.procDLQueue();
+  this.procDQueue();
   this.procCQueue();
   if(typeof this._h.links == 'undefined') this._h.links = {};
   for(var i in this.nodesByGuid) {
     //var needs = this.nodes[i].needsByIndex;
-    var needs = this.nodesByGuid[i].needs.list;
+    var needs = this.nodesByGuid[i].needs.list('direct');
     for(var j in needs) {
       try {
         var source = this.nodesByGuid[i];
-        var target = this.nodesByName[needs[j]];
+        var target = this.nodesByName[needs[j].name];
         var id = source.guid + ":" + target.guid;
         var tlink = (new $dwcore.link(source, target));
         if(typeof this._h.links[id] == 'undefined') {
@@ -159,18 +164,25 @@ $dwcore.prototype.updateLinks = function() {
   }
   return this;
 };
-$dwcore.prototype.recDependencies = function(guid, callback, cdepth, mdepth) {
+$dwcore.prototype.recDependencies = function(guid, callback, cdepth, mdepth, tree) {
   cdepth = cdepth+1 || 0;
   mdepth = mdepth || 10;
-  if(cdepth > mdepth) return;
+  tree = tree || {};
+  tree[guid] = true;
+  var nextlevel = [];
+  //if(cdepth > mdepth) return;
   var needs = this.nodesByGuid[guid].dependencies;
+  var self = this;
   for(var i in needs) {
     try {
+      if(typeof tree[needs[i]] != 'undefined') return;
+      tree[needs[i]] = true;
       if(typeof this.nodesByGuid[needs[i]] == 'undefined') {
         callback({msg: "[dependency does not exist]", dependency: need[i]});
       } else if(typeof callback == 'function') {
+        nextlevel.push(needs[i]);
         callback(null, this.nodesByGuid[needs[i]], this.nodesByGuid[guid], cdepth);
-        this.recDependencies(needs[i], callback, cdepth, mdepth);
+        //this.recDependencies(needs[i], callback, cdepth, mdepth, tree);
       } else {
         throw {msg: "[Something unknown has happened]"};
       }
@@ -178,24 +190,36 @@ $dwcore.prototype.recDependencies = function(guid, callback, cdepth, mdepth) {
       if(typeof callback == 'function') callback(err);
     }
   }
+
+  nextlevel.forEach(function(nli) {
+    self.recDependencies(nli, callback, cdepth, mdepth, tree);
+  });
 };
-$dwcore.prototype.recDependents = function(guid, callback, cdepth, mdepth) {
+$dwcore.prototype.recDependents = function(guid, callback, cdepth, mdepth, tree) {
   cdepth = cdepth+1 || 0;
   mdepth = mdepth || 10;
-  if(cdepth > mdepth) return;
+  tree = tree || {};
+  tree[guid] = true;
+  var nextlevel = [];
+  //if(cdepth > mdepth) return;
   var needs = this.nodesByGuid[guid].dependents;
+  var self = this;
   for(var i in needs) {
     try {
       if(typeof this.nodesByGuid[needs[i]] == 'undefined') {
         callback({msg: "[dependent does not exist]", dependent: need[i]});
       } else if(typeof callback == 'function') {
         callback(null, this.nodesByGuid[needs[i]], this.nodesByGuid[guid], cdepth);
-        this.recDependents(needs[i], callback, cdepth, mdepth);
+        nextlevel.push(needs[i]);
+        //this.recDependents(needs[i], callback, cdepth, mdepth, tree);
       }
     } catch(err) {
       if(typeof callback == 'function') callback(err);
     }
   }
+  nextlevel.forEach(function(nli) {
+    self.recDependents(nli, callback, cdepth, mdepth, tree);
+  });
 };
 ///End CORE
 
@@ -216,6 +240,7 @@ $dwcore.fromArray = function(rawArray) {
   for(var i in rawArray) {
     var ni = $dwcore.node.fromObj(rawArray[i]);
     ni.parent = newObj;
+    //console.log("raw away", rawArray[i]);
     newObj.addNode(ni);
   }
   newObj.updateLinks();
@@ -228,10 +253,12 @@ $dwcore.fromArray = function(rawArray) {
 $dwcore.node = function(name, opts) {
   var self = this;
   opts = opts || {};
-  opts.needs = (opts.needs instanceof Array) ? opts.needs : null || [];
+
+  //opts.needs = (opts.needs instanceof Array) ? opts.needs : null || [];
   opts.group = (typeof opts.group == 'number') ? opts.group : null || 1;
   opts.parent = (opts.parent instanceof $dwcore) ? opts.parent : null;
   opts.guid = (typeof opts.guid != 'undefined') ? opts.guid : $dwcore.genguid();
+  opts = JSON.parse(JSON.stringify(opts));
   Object.defineProperty(this, "_h", {
     enumerable: false
     ,writable: true
@@ -245,8 +272,12 @@ $dwcore.node = function(name, opts) {
 
   this.name = name;
   this.guid = opts.guid;
-  this.needs = new $dwcore.needs(opts.needs.filter(function(){ return true; }), {parent: this});
+  //old way is the bad way!
+  //this.needs = new $dwcore.needs(opts.needs.filter(function(){ return true; }), {parent: this});
+  this.needs = $dwcore.needlist.fromJS(opts, {parent: this});
+  //console.log("new node opts", this.needs);
   this.group = opts.group;
+  //console.log("new node", this);
 };
 
 Object.defineProperty($dwcore.node.prototype, "dependencies", {
@@ -272,13 +303,38 @@ Object.defineProperty($dwcore.node.prototype, "dependents", {
     });
   }
 });
-$dwcore.node.fromJSON = function(str) {
-  var o = JSON.parse(str);
-  return new $dwcore.node(o.name, o);
-};
-$dwcore.node.fromObj = function(obj) {
+
+//find if node is dead if tree is dead.
+Object.defineProperty($dwcore.node.prototype, "isTreeDead", {
+  enumerable: false,
+  get: function() {
+    //todo hook in needlist
+    if(this.isDead) return true;
+    var self = this;
+    var treedead = false;
+    var checked = {};
+    var peergroupdown = {};
+    this.needs.list(['failover', 'peers']).forEach(function(n) {
+      if(typeof checked[n.flag] == 'undefined') checked[n.flag] = {};
+      if(typeof checked[n.flag][n.name] != 'undefined') return;
+      var dnode = self.parent.nodesByName[n.name]
+      if(typeof peergroupdown[n.service] == 'undefined') peergroupdown[n.service] = false;
+      peergroupdown[n.service] = peergroupdown[n.service] || dnode.isTreeDead;
+    });
+    var isdown = false;
+    for(var i in peergroupdown) {
+      if(peergroupdown[i]) return true;
+    }
+    return false;
+  }
+});
+$dwcore.node.fromJS = function(obj) {
   return new $dwcore.node(obj.name, obj);
-}
+};
+$dwcore.node.fromJSON = function(str) {
+  return $dwcode.node.fromJS(JSON.parse(str));
+};
+$dwcore.node.fromObj = $dwcore.node.fromJS;
 
 //end Node
 
@@ -290,6 +346,8 @@ $dwcore.link = function(source, target) {
   this.target = target;
 }
 ///end Link
+
+
 ///Needs
 $dwcore.needs = function(arr, opts) {
   opts.parent = (opts.parent instanceof $dwcore.node) ? opts.parent : null;
@@ -315,7 +373,8 @@ $dwcore.needs.prototype.set = function(value) {
     this._h.items.push(value);
     if(this.parent != null) {
       try {
-       this.parent.parent._h.cqueue.push(value);
+        //console.log("need.set adding cqueue item %s to node %s", value, this.parent.name);
+        this.parent.parent._h.cqueue.push(value);
       } catch (e) { console.log(e.stack); debugger;}
     }
   }
@@ -353,9 +412,11 @@ Object.defineProperty($dwcore.needs.prototype, "list", {
 ///ends Needs
 
 ///needitem
-$dwcore.needitem = function(name, flag) {
+$dwcore.needitem = function(name, flags, opts) {
+  opts = opts || {};
+  opts.parent = opts.parent || null;
   flags = flags || {};
-  flags.direct = flags.direct || true;
+  flags.direct = (typeof flags.peer == 'undefined') && (typeof flags.failover == 'undefined'); //flags.direct || true;
   flags.peer = flags.peer || false;
   flags.failover = flags.failover || false;
   flags.service = flags.service || '';
@@ -364,13 +425,74 @@ $dwcore.needitem = function(name, flag) {
     if(flags.direct) return 'direct';
     if(flags.failover) return 'failover';
     if(flags.peer) return 'peer';
+    return 'direct';
   })();
+  this.parent = opts.parent;
   this.service = flags.service;
 };
 ///end needitem
 
 ///needlist
-$dwcore.needlist = function() {};
+$dwcore.needlist = function(opts) {
+  "use strict";
+  Object.defineProperty(this, "_h", { enumerable: false, writable: true, 
+    value: {
+      needs: {direct: {}, failover: {}, peer: {}}
+      ,deleted: []
+    }
+  });
+  opts = opts || {}
+  this.parent = opts.parent || null;
+  //console.log("needlist constructor", this);
+};
+$dwcore.needlist.fromJSON = function(str, opts) {
+  var obj;
+  opts = opts || {}
+  opts.parent = opts.parent || null;
+  try {
+    if(typeof str != 'string') throw "[$dwcore.needlist.fromJSON: str must be a string.]";
+    obj = JSON.parse(str)
+  } catch(err) {
+    throw "[$dwcore.needlist.fromJSON: str must be valid JSON string.]";
+  }
+  return $dwcode.needlist.fromJS(obj, opts);
+};
+$dwcore.needlist.fromJS = function(obj, opts) {
+  //needs, pneeds, fneeds
+  //console.log("needlist.fromJS", obj);
+  opts = opts || {}
+  opts.parent = opts.parent || null;
+  var keys = {pneeds: true, fneeds: true};
+  //debugger;
+  try {
+    var nl = new $dwcore.needlist(opts);
+    //console.log("needlist.fromJS nl", new $dwcore.needlist());
+    for(var k in obj) {
+      if(typeof keys[k] != 'undefined') {
+        for(var sn in obj[k]) {
+          obj[k][sn].forEach(function(i) {
+            var ni = new $dwcore.needitem(i, {
+              service: sn,
+              failover: k=='fneeds',
+              peer: k=='pneeds'
+            });
+            nl.add(ni);
+          });
+        }
+      } else if(k == 'needs') {
+        obj[k].forEach(function(i) {
+          var ni = new $dwcore.needitem(i, {parent: opts.parent});
+          nl.add(ni);
+        });
+      }
+    }
+    //console.log("needlist.fromjs nl", nl);
+    return nl;
+  } catch(err) {
+    //todo err
+    throw err;
+  }
+};
 $dwcore.needlist.init = function(needs) {
   if(needs instanceof Array) {
     var nl = new $dwcore.needlist();
@@ -382,20 +504,36 @@ $dwcore.needlist.init = function(needs) {
   return;
 };
 
-Object.defineProperty($dwcore.needlist.prototype, "_h", { enumerable: false, writable: true, 
-  value: {
-    needs: {direct: {}, failover: {}, peer: {}}
-    ,deleted: []
-  }
-});
-
 $dwcore.needlist.prototype.add = function(need, callback) {
   if(!(need instanceof $dwcore.needitem) && typeof callback == 'function') {
     callback({msg: "[needlist.add: need is not an instance of needitem]"});
     return this;
   }
-
+  if(this.parent != null && this.parent.parent != null) {
+    try {
+      //console.log("need.set adding cqueue item %s to node %s", value, this.parent.name);
+      this.parent.parent._h.cqueue.push(need.name);
+    } catch (e) { console.log(e.stack); debugger;}
+  }
   this._h.needs[need.flag][need.name] = need;
+  return this;
+};
+
+$dwcore.needlist.prototype.remove = function(need, callback) {
+  var self = this;
+  if(typeof need == 'string') need = self.list().filter(function(v) { return v.name == need; }).map(function(v) { return v; })[0];
+  try {
+    var tmp = need;
+    delete self._h.needs[need.flag][need.name];
+    self._h.deleted.push(tmp);
+    if(typeof callback == 'function') callback(null, need);
+  } catch(e) {
+    if(typeof callback == 'function') callback({
+      msg: "[needlist.remove: need does not exist.]"
+      ,need: need
+      ,exception: e
+    });
+  }
   return this;
 };
 
@@ -410,7 +548,7 @@ $dwcore.needlist.prototype.list = function(filter) {
   filter.forEach(function(d) {
     if(typeof self._h.needs[d] == 'undefined') return;
     for(var k in self._h.needs[d]) {
-      if(typeof r[self._h.needs[d][k]] == 'undefined') return;
+      if(typeof r[self._h.needs[d][k]] != 'undefined') return;
       r[self._h.needs[d][k].name] = self._h.needs[d][k];
     }
   });
@@ -418,24 +556,6 @@ $dwcore.needlist.prototype.list = function(filter) {
   for(var k in r) {
     rl.push(r[k]);
   }
-
   return rl;
-};
-
-$dwcore.needlist.prototype.remove = function(need, callback) {
-  var self = this;
-  try {
-    var tmp = need;
-    delete self._h.needs[need.flag][need.name];
-    self._h.deleted.push(tmp);
-    callback(null, need);
-  } catch(e) {
-    callback({
-      msg: "[needlist.remove: need does not exist.]"
-      ,need: need
-      ,exception: e
-    });
-  }
-  return this;
 };
 ///end needlist

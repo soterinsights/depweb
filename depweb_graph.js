@@ -135,6 +135,15 @@ $depweb_graph.prototype.redraw = function() {
     .call(self.graph.drag)
     .on('mouseover', function() {
       var guid = d3.select(this).attr('dw_guid').toString();
+
+      self.data.recDependencies(guid, function(e, n, p ,d) {
+        if(d == 0) return;
+        //d3.selectAll('.link[dw_dependent="'+p.guid+'"]') //[dw_dependency="'+n.guid+'"]
+        d3.select('.link[dw_dependent="'+ n.guid +'"][dw_dependency="'+ p.guid +'"]')
+          .transition(500)
+          .style('stroke', '#FF1493');
+      });
+
       d3.selectAll('G[dw_dependents~="'+guid+'"] circle')
         .transition(500)
         .attr('r', 10)
@@ -152,12 +161,6 @@ $depweb_graph.prototype.redraw = function() {
         .transition(500)
         .style('stroke', 'cyan')
         .style('stroke-width', '6px');
-      self.data.recDependencies(guid, function(e, n, p ,d) {
-        if(d == 0) return;
-        d3.selectAll('.link[dw_dependent="'+n.guid+'"]')
-        .transition(500)
-        .style('stroke', '#FF1493');
-      })
     })
     .on('mouseout', function() {
       var nid = d3.select(this).attr('dw_nid');

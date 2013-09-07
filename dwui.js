@@ -10,7 +10,7 @@ $dwui.preloadForm = function(jsondata, opts) {
   //if(typeof this.form == 'undefined' || this.form == null) return;
   if(typeof jsondata == 'string') jsondata = JSON.parse(jsondata);
   if(!(jsondata instanceof Array)) return;
-  this.opts = opts;
+  //this.opts = opts;
   /*jsondata.forEach(function(d) {
     d.toString = function nodeToString() {
       return this.name + ':' + this.needs.join(','); // + ':' + Date.now();
@@ -18,8 +18,21 @@ $dwui.preloadForm = function(jsondata, opts) {
   })*/
   var n = new $dwui();
 
-  var graph = n.graph = this.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata));
-  n.ko.nodes = ko.mapping.fromJS(graph.data.nodes); //ko.observableArray(jsondata);
+  var graph = n.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata));
+
+  var mapping = {
+    'needs': {
+      create: function(needlist) {
+          var l = needlist.data.list().map(function() {
+            return arguments[0].name;
+          });
+          return l;
+          //return new myChildModel(options.data);
+      }
+    }
+  }
+
+  n.ko.nodes = ko.mapping.fromJS(graph.data.nodes, mapping); //ko.observableArray(jsondata);
   n.bind();
   //n.ko.nodes = ;
   //n.ko.links = ko.mapping.fromJS(graph.data.links);
@@ -27,7 +40,8 @@ $dwui.preloadForm = function(jsondata, opts) {
 };
 $dwui.prototype.fromJSON = function(json) {
   var self = this;
-  var ar = JSON.parse($('#import_text').val());
+  //var ar = JSON.parse($('#import_text').val());
+  var ar = JSON.parse(json)
   this.clear();
   console.log(ar);
   ar.forEach(function(d) {
@@ -45,7 +59,7 @@ $dwui.addNeedPrompt = function(n, e) {
     var newneed = $('.needname', nf).val();
     nf.remove();
     if(newneed == "") return;
-    self.graph.data.nodesByGuid[n.guid()].needs.set(newneed);
+    self.graph.data.nodesByGuid[n.guid()].needs.add(new $dwcore.needitem(newneed));
     self.refresh();
   });
 }
@@ -53,10 +67,16 @@ $dwui.addNeedPrompt = function(n, e) {
 $dwui.prototype.ko = {};
 $dwui.prototype.form = null;
 $dwui.prototype.removeNeed = function(node, need) {
-  this.graph.data.nodesByGuid[node.guid()].needs.remove(need);
+  this.graph.data.nodesByGuid[node.guid()].needs.remove(need, function() {console.log(arguments); });
   this.refresh();
 };
 $dwui.prototype.removeNode = function(n) {
+  var self = this;
+  this.graph.data.nodes.forEach(function(d) {
+    try {
+      d.needs.remove(n.name());
+    } catch(e){}
+  });
   this.graph.data.removeNode(n.name());
   this.refresh();
 };
@@ -111,7 +131,7 @@ $dwui.prototype.switch = function(t, o, e) {
 $dwui.prototype.refresh = function() {
   this.graph.data.updateLinks();
   ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
-  d3.selectAll('svg *');
+  d3.selectAll('svg *').remove();
   this.graph.redraw();
 };
 $dwui.prototype.bind = function() {
