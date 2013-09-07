@@ -110,7 +110,8 @@ $dwui.prototype.addNode = function(d, e) {
 }
 
 $dwui.prototype.markDead = function(n, e) {
-  this.graph.data.nodesByGuid[n.guid()].isDead = !this.graph.data.nodesByGuid[n.guid()].isDead;
+  var state = this.graph.data.nodesByGuid[n.guid()].isDead;
+  this.graph.data.nodesByGuid[n.guid()].isDead = !state;
   this.refresh();
 };
 
@@ -142,4 +143,12 @@ $dwui.prototype.refresh = function() {
 };
 $dwui.prototype.bind = function() {
   ko.applyBindings(this.ko);
+}
+
+$dwui.prototype.checkDead = function(n) {
+  return this.graph.data.nodesByGuid[n.guid()].isDead;
+}
+
+$dwui.prototype.checkTreeDead = function(n) {
+  return this.graph.data.nodesByGuid[n.guid()].isTreeDead;
 }

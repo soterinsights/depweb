@@ -60,6 +60,9 @@ div#graph {
   width: 100%;
   min-height: 400px;
 }
+.itsdeadjimforreal {
+  color: red;
+}
 </style>
 <body>
 <!--
@@ -121,8 +124,8 @@ div#graph {
           <script type="text/html" id="dwui_nodes">
             <tr>
               <td>
-                n: <span data-bind="text: node.name"></span>
-                <span class="itsdeadjim" data-bind="click: $root.self.markDead.bind($root.self)">(d)</span>
+                n: <span data-bind="text: node.name, css: { itsdeadjimforreal: $root.self.checkTreeDead(node) }"></span>
+                <span class="killitwithfire" data-bind="click: $root.self.markDead.bind($root.self), css: { itsdeadjimforreal: $root.self.checkDead(node) }">(d)</span>
                 <span class="beleted" data-bind="click: $root.self.removeNode.bind($root.self, node)">(X)</span>
               </td>
               <td>
