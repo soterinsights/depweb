@@ -73,7 +73,7 @@ div#graph {
   ,{"name": "DNS", "needs":["Internet", "Dragon"]}
   ,{"name": "Netflix", "needs":["DNS","Internet"]}-->
 <textarea style="display:none;" id="dw_text">[
-  {"name": "Power"}
+  {"name": "Power", "fneeds": {"power": ["Power Grid", "Generator"]}}
   ,{"name": "Building", "needs": ["Power"]}
   ,{"name": "Switch", "needs": ["Building", "Power"]}
   ,{"name": "Server", "needs": ["Switch","Building", "Power"]}
@@ -83,6 +83,11 @@ div#graph {
   ,{"name": "Phone Email", "needs": ["Outlook Web/ActiveSync", "Internet"]}
   ,{"name": "Router", "needs": ["Building", "Power"]}
   ,{"name": "Internet", "needs": ["ISP", "Router"]}
+  ,{"name": "Hyper-V Cluster", "fneeds": {"hvcs": ["hyper1", "hyper2"]}}
+  ,{"name": "Terminal Server", "needs": ["Hyper-V Cluster"]}
+  ,{"name": "Thinstations", "needs": ["Terminal Server"]}
+  ,{"name": "hyper1", "needs": ["Power", "Switch", "Building"]}
+  ,{"name": "hyper2", "needs": ["Power", "Switch", "Building"]}
 ]</textarea>
 <div class="navbar navbar-inverse navbar-fixed-top" style="display: none;">
   <div class="navbar-inner">
@@ -120,7 +125,7 @@ div#graph {
         </div>
       </div>
       <div class="input_methods" id="uiinputs">
-        <form id="f_nodes">
+        <div id="f_nodes">
           <script type="text/html" id="dwui_nodes">
             <tr>
               <td>
@@ -129,19 +134,40 @@ div#graph {
                 <span class="beleted" data-bind="click: $root.self.removeNode.bind($root.self, node)">(X)</span>
               </td>
               <td>
-                <span data-bind="foreach: {data: node.needs, as: 'need'}">
-                  <span data-bind="text: need"></span><span class="beleted" data-bind="click: $root.self.removeNeed.bind($root.self, node)">(X)</span>
-                </span>
-                <span data-bind="click: $dwui.addNeedPrompt.bind($root.self)" class="addneeds">+<span>
+                <div>
+                  <span data-bind="foreach: {data: node.needs, as: 'need'}">
+                    <span data-bind="text: need.name"></span><span class="beleted" data-bind="click: $root.self.removeNeed.bind($root.self, node)">(X)</span>
+                  </span>
+                  <span data-bind="click: $root.self.showNeedPrompt" class="addneeds">+<span>
+                </div>
+                <form class="form-inline" data-bind="submit: $root.self.addNeed.bind($root.self, node)" action="javascript:null;" style="display: none;">
+                  <table>
+                    <tr>
+                      <td><input type="text" class="input-small needname" placeholder="Node Name"></td>
+                      <td></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <select class='needflags' data-bind="attr: {id: 'addneed' + node.guid()}">
+                          <option value="fneeds">Failover</option>
+                          <option value="direct" selected="selected">Direct</option>
+                        </select>
+                      </td>
+                      <td><label data-bind="attr: {for: 'addneed' + node.guid()}">Need type</label></td>
+                    </tr>
+                  </table>
+                </form>
               </td>
             </tr>
           </script>
           <table id="node_table" data-bind="template: { name: 'dwui_nodes', foreach: nodes, as: 'node' }">
           </table>
           <div>
-            <input type="text" class="input-small needname" placeholder="Node Name" data-bind="event: { keypress: $root.self.addNode.bind($root.self) }">
+            <form class="form-inline" data-bind="submit: $root.self.addNode.bind($root.self)" action="javascript:null;">
+              <input type="text" class="input-small needname" placeholder="Node Name" />
+            </form>
           </div>
-        </form>
+        </div>
       </div>
       <div class="input_methods" style="display: none;" id="import_adv">
         <textarea id="import_text" class="json_data" data-bind="text: $root.self.exportform()"></textarea> <br />
@@ -171,9 +197,10 @@ div#graph {
 </div> <!-- /container -->
 <div id="res" style="display: none;">
   <div class="addNeedPrompt">
-    <form class="form-inline" action="javascript:$('button.btn').click();">
+  <!--$('button.btn', this).click();-->
+    <form class="form-inline" action="javascript:null;">
       <input type="text" class="input-small needname" placeholder="Node Name">
-      <button type="button" class="btn">Add</button>
+      <button type="button" class="btn" style="display:none;">Add</button>
     </form>
   </div>
 </div>

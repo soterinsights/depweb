@@ -23,15 +23,14 @@ $dwui.preloadForm = function(jsondata, opts) {
   var mapping = {
     'needs': {
       create: function(needlist) {
-          var l = needlist.data.list().map(function() {
-            return arguments[0].name;
-          });
+          var l = ko.observableArray()
+          return ko.mapping.fromJS(needlist.data.list());
           return l;
           //return new myChildModel(options.data);
       }
     }
   }
-
+  n.ko.cneedprop = ko.observable();
   n.ko.nodes = ko.mapping.fromJS(graph.data.nodes, mapping); //ko.observableArray(jsondata);
   n.bind();
   //n.ko.nodes = ;
@@ -52,24 +51,18 @@ $dwui.prototype.fromJSON = function(json) {
   //this = new $dwui.preloadForm(json, this.opts);
 };
 
-$dwui.addNeedPrompt = function(n, e) {
-  var self = this;
-  var nf = $('#res .addNeedPrompt').clone().appendTo(e.srcElement);
-  $('.btn', nf).click(function() {
-    var newneed = $('.needname', nf).val();
-    nf.remove();
-    if(newneed == "") return;
-    self.graph.data.nodesByGuid[n.guid()].needs.add(new $dwcore.needitem(newneed));
-    self.refresh();
-  });
-}
 
 $dwui.prototype.ko = {};
 $dwui.prototype.form = null;
+$dwui.prototype.showNeedPrompt = function(n, e) {
+  $('form', e.srcElement.parentNode.parentNode).toggle();
+};
+
 $dwui.prototype.removeNeed = function(node, need) {
   this.graph.data.nodesByGuid[node.guid()].needs.remove(need, function() {console.log(arguments); });
   this.refresh();
 };
+
 $dwui.prototype.removeNode = function(n) {
   var self = this;
   this.graph.data.nodes.forEach(function(d) {
@@ -80,33 +73,25 @@ $dwui.prototype.removeNode = function(n) {
   this.graph.data.removeNode(n.name());
   this.refresh();
 };
-$dwui.prototype.addNeed = function(n, d, e) {
-  return;
-  var el = $(e.target);
-  if(e.keyCode == 13) {
-    var newneed =  el.val();
-    this.graph.data.nodesByGuid[n.guid()].needs.set(newneed);
-    this.refresh();
-    el.val('');
-    return;
-  }
-  if(!(/.+/).test(String.fromCharCode(e.keyCode))) { return; }
-  var c = el.val();
-  el.val(c + String.fromCharCode(e.charCode));
-}
-$dwui.prototype.addNode = function(d, e) {
-  var el = $(e.target);
-  if(e.keyCode == 13) {
-    var newnode = new $dwcore.node(el.val());
-    this.graph.data.addNode(newnode);
-    this.refresh();
-    el.val('');
-    return;
-  }
-  if(!(/.+/).test(String.fromCharCode(e.keyCode))) { return; }
 
-  var c = el.val();
-  el.val(c + String.fromCharCode(e.charCode));
+$dwui.prototype.addNeed = function(n, f) {
+  //todo: multi-need, perhaps spaces?
+  var el = $('input', f);
+  var newneed = new $dwcore.needitem(el.val(), {direct: true});
+  this.graph.data.nodesByGuid[n.guid()].needs.add(newneed)
+  this.refresh();
+  el.val('');
+};
+
+$dwui.prototype.addNode = function(f) {
+  //todo: multi-node, perhaps spaces?
+  var el = $('input', f);
+
+  var newnodes = new $dwcore.node(el.val());
+  this.graph.data.addNode(newnodes);
+  this.refresh();
+  el.val('');
+  return;
 }
 
 $dwui.prototype.markDead = function(n, e) {
@@ -118,10 +103,34 @@ $dwui.prototype.markDead = function(n, e) {
 $dwui.prototype.exportform = function() {
   var self = this;
   var map = {
-    ignore: ["x","y","px","py","weight"]
+    ignore: ["x","y","px","py","weight",'index']
   }
-  return JSON.stringify(ko.mapping.toJS(self.ko.nodes, map), null, " ");
+  var tmp = ko.mapping.toJS(self.ko.nodes, map);
+  //cleam
+  for(var i in tmp) {
+    var tmpneed = {
+      direct: [],
+      failover: {},
+      peer: {}
+    }
+    var tneeds = [], tpneeds = [], tfneed = [];
+    for(var j in tmp[i].needs) {
+      var tn = tmp[i].needs[j];
+      if(tn.flag == 'direct') {
+        tmpneed['direct'].push(tn.name);
+      } else {
+        if(typeof tmpneed[tn.flag][tn.service] == 'undefined') tmpneed[tn.flag][tn.service] = [];
+        tmpneed[tn.flag][tn.service].push(tn.name);
+      }
+    }
+
+    tmp[i].fneeds = tmpneed.fneeds;
+    tmp[i].pneeds = tmpneed.pneeds;
+    tmp[i].needs = tmpneed.direct;
+  }
+  return JSON.stringify(tmp, null, " ");
 };
+
 $dwui.prototype.clear = function() {
   var self = this;
   this.graph.data.nodes.forEach(function(n) {
@@ -141,14 +150,15 @@ $dwui.prototype.refresh = function() {
   d3.selectAll('svg *').remove();
   this.graph.redraw();
 };
+
 $dwui.prototype.bind = function() {
   ko.applyBindings(this.ko);
-}
+};
 
 $dwui.prototype.checkDead = function(n) {
   return this.graph.data.nodesByGuid[n.guid()].isDead;
-}
+};
 
 $dwui.prototype.checkTreeDead = function(n) {
   return this.graph.data.nodesByGuid[n.guid()].isTreeDead;
-}
+};

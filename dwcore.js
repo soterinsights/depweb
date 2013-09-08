@@ -32,47 +32,30 @@ $dwcore.prototype.addNode = function(node, callback) {
   var needlista = node.needs.list();
   for(var i in needlista) {
     if(typeof this.nodeByName[needlista[i].name] == 'undefined') {
-      //console.log("addnode adding cqueue item %s to node %s", needlista[i].name, node.name);
       this._h.cqueue.push(needlista[i].name);
     }
   }
 
-  //console.log("$dwcore.addnode: ", node.name, needlist);
   return this;
 };
 $dwcore.prototype.removeNode = function(n, callback) {
   this._h.dqueue.push({name: n, callback: callback});
 };
 $dwcore.prototype._removeNode = function(n, callback) {
-  /*if(!(n instanceof $dwcore.node)) {
-    //if(typeof callback == 'function') callback("error! given node is not a node", n);
-    //return this; //throw "error! given node is not a node";
-  }*/
   if(typeof this.nodesByName[n] == 'undefined') {
     if(typeof callback == 'function') callback("error! This node already exists", n);
-    //this.updateNode(n, callback);
     return this; //throw "error! This node already exists!";
   }
   var tnode = this.nodesByName[n];
   var dlist = [];
   for(var i in this.links) {
-    //if(this.data.links[i].target_nid == n)
     var source = this.links[i].source;
     var target = this.links[i].target;
     var id = source.guid + ":" + target.guid;
     var id_rev = target.guid + ":" + source.guid;
     if(source.guid == tnode.guid || target.guid == tnode.guid) {
-      /*console.log("deleteing S:%s > T:%s", 
-        ((typeof this._h.links[id] != 'undefined') ? source.name : target.name),
-        ((typeof this._h.links[id] != 'undefined') ? target.name : source.name))*/
       if(typeof this._h.links[id] != 'undefined') delete this._h.links[id];
       if(typeof this._h.links[id_rev] != 'undefined') delete this._h.links[id_rev];
-
-
-      
-      //try { delete this._h.links[id]; } catch(e) {}
-      //try { delete this._h.links[id_rev]; } catch(e) {}
-      //this.links.splice(i, 1);
       dlist.push(i);
     }
   }
@@ -80,7 +63,6 @@ $dwcore.prototype._removeNode = function(n, callback) {
   for(var i in dlist) {
     this.links.splice(dlist[i]-(offset++),1);
   }
-  //TODO: remove node from list
   for(var i in this.nodes) {
     var ni = this.nodes[i];
     if(ni.name == n) {
@@ -108,7 +90,6 @@ Object.defineProperty($dwcore.prototype, "procDQueue", {
     var self = this;
     this._h.dqueue.forEach(function(d) {
       self._removeNode(d.name, d.callback);
-      //if(typeof d.callback == 'function') d.callback(null, d.name);
     });
     this._h.dqueue = [];
     return;
@@ -122,7 +103,6 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
       source.needs._h.deleted.forEach(function(dn, i) {
         var target = self.nodesByName[dn.name];
         var id = source.guid + ":" + target.guid;
-        //console.log("deleteing ", id)
         delete self._h.links[id];
         var dlist = [];
         self.links.forEach(function(l, i) {
@@ -130,7 +110,6 @@ Object.defineProperty($dwcore.prototype, "procDLQueue", {
         });
         var offset = 0;
         dlist.forEach(function(d) {
-          //console.log("deleting link", self.links[d-(offset)]);
           self.links.splice(d-(offset++), 1);
         });
       });
@@ -145,8 +124,7 @@ $dwcore.prototype.updateLinks = function() {
   this.procCQueue();
   if(typeof this._h.links == 'undefined') this._h.links = {};
   for(var i in this.nodesByGuid) {
-    //var needs = this.nodes[i].needsByIndex;
-    var needs = this.nodesByGuid[i].needs.list('direct');
+    var needs = this.nodesByGuid[i].needs.list();
     for(var j in needs) {
       try {
         var source = this.nodesByGuid[i];
@@ -158,7 +136,6 @@ $dwcore.prototype.updateLinks = function() {
         }
         this._h.links[id] = tlink;
       } catch(e) {
-        //console.log(e.stack);
       }
     }
   }
@@ -170,7 +147,6 @@ $dwcore.prototype.recDependencies = function(guid, callback, cdepth, mdepth, tre
   tree = tree || {};
   tree[guid] = true;
   var nextlevel = [];
-  //if(cdepth > mdepth) return;
   var needs = this.nodesByGuid[guid].dependencies;
   var self = this;
   for(var i in needs) {
@@ -182,7 +158,6 @@ $dwcore.prototype.recDependencies = function(guid, callback, cdepth, mdepth, tre
       } else if(typeof callback == 'function') {
         nextlevel.push(needs[i]);
         callback(null, this.nodesByGuid[needs[i]], this.nodesByGuid[guid], cdepth);
-        //this.recDependencies(needs[i], callback, cdepth, mdepth, tree);
       } else {
         throw {msg: "[Something unknown has happened]"};
       }
@@ -201,7 +176,6 @@ $dwcore.prototype.recDependents = function(guid, callback, cdepth, mdepth, tree)
   tree = tree || {};
   tree[guid] = true;
   var nextlevel = [];
-  //if(cdepth > mdepth) return;
   var needs = this.nodesByGuid[guid].dependents;
   var self = this;
   for(var i in needs) {
@@ -211,7 +185,6 @@ $dwcore.prototype.recDependents = function(guid, callback, cdepth, mdepth, tree)
       } else if(typeof callback == 'function') {
         callback(null, this.nodesByGuid[needs[i]], this.nodesByGuid[guid], cdepth);
         nextlevel.push(needs[i]);
-        //this.recDependents(needs[i], callback, cdepth, mdepth, tree);
       }
     } catch(err) {
       if(typeof callback == 'function') callback(err);
@@ -236,18 +209,15 @@ $dwcore.fromArray = function(rawArray) {
   if(typeof rawArray == 'string') rawArray = JSON.parse(rawArray);
   else if(rawArray instanceof Array) rawArray = rawArray.filter(function() {return true;});
   
-  //newObj.__proto__ == $depweb.prototype;
   for(var i in rawArray) {
     var ni = $dwcore.node.fromObj(rawArray[i]);
     ni.parent = newObj;
-    //console.log("raw away", rawArray[i]);
     newObj.addNode(ni);
   }
   newObj.updateLinks();
   return newObj;
 };
 ///end misc funcs
-
 
 ///Node
 $dwcore.node = function(name, opts) {
@@ -274,11 +244,8 @@ $dwcore.node = function(name, opts) {
   this.guid = opts.guid;
   this.isDead = false;
   //old way is the bad way!
-  //this.needs = new $dwcore.needs(opts.needs.filter(function(){ return true; }), {parent: this});
   this.needs = $dwcore.needlist.fromJS(opts, {parent: this});
-  //console.log("new node opts", this.needs);
   this.group = opts.group;
-  //console.log("new node", this);
   Object.defineProperty(this, "dependencies", {
     get: function() {
       var self = this;
@@ -307,7 +274,7 @@ $dwcore.node = function(name, opts) {
   Object.defineProperty(this, "isTreeDead", {
     enumerable: false,
     get: function() {
-      //todo hook in needlist
+      //todo hook in needlist....wtf was I thinking?
       if(this.isDead) return true;
       var self = this;
       var treedead = false;
@@ -325,12 +292,12 @@ $dwcore.node = function(name, opts) {
         if(typeof checked[n.flag] == 'undefined') checked[n.flag] = {};
         if(typeof checked[n.flag][n.name] != 'undefined') return;
         var dnode = self.parent.nodesByName[n.name]
-        if(typeof peergroupdown[n.service] == 'undefined') peergroupdown[n.service] = false;
-        peergroupdown[n.service] = peergroupdown[n.service] || dnode.isTreeDead;
+        if(typeof peergroupdown[n.service] == 'undefined') peergroupdown[n.service] = 0;
+        peergroupdown[n.service] += !dnode.isTreeDead;
       });
       var isdown = false;
       for(var i in peergroupdown) {
-        if(peergroupdown[i]) return true;
+        if(peergroupdown[i] == 0) return true;
       }
       return false;
     }
@@ -374,14 +341,13 @@ $dwcore.needs = function(arr, opts) {
   });
 }
 $dwcore.needs.prototype.toJSON = function() {
-  return this._h.items; //JSON.stringify(this._h.items);
+  return this._h.items;
 }
 $dwcore.needs.prototype.set = function(value) {
   if(!this.exists(value)) {
     this._h.items.push(value);
     if(this.parent != null) {
       try {
-        //console.log("need.set adding cqueue item %s to node %s", value, this.parent.name);
         this.parent.parent._h.cqueue.push(value);
       } catch (e) { console.log(e.stack); debugger;}
     }
@@ -410,9 +376,6 @@ $dwcore.needs.prototype.remove = function(id, callback) {
 $dwcore.needs.prototype.exists = function(id) {
   return typeof this.get(id) != 'undefined';
 };
-/*$dwcore.needs.prototype.list = function() {
-  return this._h.items.filter(function() { return true; });
-};*/
 Object.defineProperty($dwcore.needs.prototype, "list", {
   enumerable: true
   ,get: function() {return this._h.items.filter(function() {return true;})} 
@@ -424,7 +387,7 @@ $dwcore.needitem = function(name, flags, opts) {
   opts = opts || {};
   opts.parent = opts.parent || null;
   flags = flags || {};
-  flags.direct = (typeof flags.peer == 'undefined') && (typeof flags.failover == 'undefined'); //flags.direct || true;
+  flags.direct = (typeof flags.peer == 'undefined') && (typeof flags.failover == 'undefined');
   flags.peer = flags.peer || false;
   flags.failover = flags.failover || false;
   flags.service = flags.service || '';
@@ -451,7 +414,6 @@ $dwcore.needlist = function(opts) {
   });
   opts = opts || {}
   this.parent = opts.parent || null;
-  //console.log("needlist constructor", this);
 };
 $dwcore.needlist.fromJSON = function(str, opts) {
   var obj;
@@ -466,15 +428,11 @@ $dwcore.needlist.fromJSON = function(str, opts) {
   return $dwcode.needlist.fromJS(obj, opts);
 };
 $dwcore.needlist.fromJS = function(obj, opts) {
-  //needs, pneeds, fneeds
-  //console.log("needlist.fromJS", obj);
   opts = opts || {}
   opts.parent = opts.parent || null;
   var keys = {pneeds: true, fneeds: true};
-  //debugger;
   try {
     var nl = new $dwcore.needlist(opts);
-    //console.log("needlist.fromJS nl", new $dwcore.needlist());
     for(var k in obj) {
       if(typeof keys[k] != 'undefined') {
         for(var sn in obj[k]) {
@@ -494,7 +452,6 @@ $dwcore.needlist.fromJS = function(obj, opts) {
         });
       }
     }
-    //console.log("needlist.fromjs nl", nl);
     return nl;
   } catch(err) {
     //todo err
@@ -519,7 +476,6 @@ $dwcore.needlist.prototype.add = function(need, callback) {
   }
   if(this.parent != null && this.parent.parent != null) {
     try {
-      //console.log("need.set adding cqueue item %s to node %s", value, this.parent.name);
       this.parent.parent._h.cqueue.push(need.name);
     } catch (e) { console.log(e.stack); debugger;}
   }
