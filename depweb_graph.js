@@ -5,9 +5,13 @@ var $depweb_graph = function(node, width, height, dataObj) {
 
   this.graph = d3.layout.force()
     .charge(-300)
-    .linkDistance(200)
-    .size([width, height]);
-  this.svg = d3.select(node).append('svg') //d3.select("body").append("svg")
+    .linkDistance(function(l) {
+      self.data.nodesByGuid[l.source.guid];
+      return 150;
+    })
+    .size([width, height])
+    .gravity(0.03);
+  this.svg = d3.select(node).append('svg')
     .attr("width", width)
     .attr("height", height);
 
@@ -24,8 +28,7 @@ var $depweb_graph = function(node, width, height, dataObj) {
 
   this.graph.on("tick", (function() {
     var self = this;
-    //this.graph.links(this.graph.links().filter(function(d) { return typeof d != 'undefined'; }));
-    
+
     try {
       if(self.elements.nodes == null || typeof this.svg == 'undefined') return;
       self.elements.links.attr("x1", function(d) { return d.source.x; })
@@ -39,7 +42,6 @@ var $depweb_graph = function(node, width, height, dataObj) {
           .attr("cy", function(d) { return d.y || 0; });
       self.svg.selectAll('.node text').attr("x", function(d) { return d.x+5; })
           .attr("y", function(d) { return d.y; });
-      //d3.selectAll('.link:not([dw_dependent])').remove();
     } catch(e) {
       console.log(e.stack);
       console.log(e.message);
@@ -49,7 +51,6 @@ var $depweb_graph = function(node, width, height, dataObj) {
   this.redraw();
 }
 $depweb_graph.prototype.addData = function(newNode) {
-  //if(!(newNode instanceof node)) return;
   this.data.addNode(newNode);
   this.data.updateLinks();
   setTimeout(this.redraw.bind(this), 1);
@@ -62,11 +63,6 @@ $depweb_graph.prototype.updateData = function(mnode) {
   this.data.updateNode(mnode, (function(err, dn, ndata) {
     console.log("args", arguments);
     dn = dn || [];
-    //console.log(arguments);
-    /*for(var i in dn) {
-      var s = '.link[dw_dependency="{source}"][dw_dependent="{target}"]'
-              .replace("{source}", dn[i].source).replace("{target}", dn[i].target);
-    }*/
     var l = self.graph.links();
     var ol = l.length;
     var d = [];
@@ -76,25 +72,15 @@ $depweb_graph.prototype.updateData = function(mnode) {
         if(l[i].source_nid == dn[j].source
            && l[i].target_nid == dn[j].target_nid) {
           l.splice(i-off,1);
-          //delete l[i];
-          //off++;
         }
       }
     }
-    //self.graph.links(l.filter(function(d) { return typeof d != 'undefined';}));
-    console.log("updatedata", l.length);
-    console.log("self.graph.links()", self.graph.links().length);
-    console.log("self.data.links", self.data.links.length);
-    console.log("ndata.links", ndata.links.length)
     if(ol != l.length) {
       setTimeout(arguments.callee.bind(this ,err, dn, ndata), 1);
       return;
     }
-    //console.log("glinks, l", self.graph.links().length, l.length);
     dn.forEach(function(d) {
-      //d3.select('.link[dw_dependent="'+d+'"][dw_dependency="'+mnode.nid+'"]').remove();
     })
-    //self.graph.links(self.graph.links().filter(function(d) {return typeof d != 'undefined';}));
     setTimeout(self.redraw.bind(self), 10);
   }));
   
@@ -104,10 +90,6 @@ $depweb_graph.prototype.redraw = function() {
   var self = this;
   if(typeof self.data == 'undefined') return;
   self.graph.stop();
-  //clean links
-  //this.graph.links(this.graph.links().filter(function(d) { return typeof d != 'undefined'; }));
-  //this.graph.links(this.data.links);
-  //this.graph.nodes(this.data.nodes);
 
   var links = this.svg.selectAll(".link")
                 .data(this.graph.links());
@@ -116,9 +98,6 @@ $depweb_graph.prototype.redraw = function() {
                 .data(self.graph.nodes());
 
   self.graph.start();
-  //console.log(this.graph.links());
-  //return;
-  //if(this.graph.links().length == 0) links = links.data(this.data.links);
   links.exit().remove();
   links.enter().append("line")
       .attr("class", "link")
@@ -138,7 +117,6 @@ $depweb_graph.prototype.redraw = function() {
 
       self.data.recDependencies(guid, function(e, n, p ,d) {
         if(d == 0) return;
-        //d3.selectAll('.link[dw_dependent="'+p.guid+'"]') //[dw_dependency="'+n.guid+'"]
         d3.select('.link[dw_dependent="'+ n.guid +'"][dw_dependency="'+ p.guid +'"]')
           .transition(500)
           .style('stroke', '#FF1493');
@@ -163,9 +141,7 @@ $depweb_graph.prototype.redraw = function() {
         .style('stroke-width', '6px');
 
       self.data.recDependents(guid, function(e, n, p ,d) {
-        //if(d == 0) return;
         if(!n.isTreeDead) return;
-        //d3.selectAll('.link[dw_dependent="'+p.guid+'"]') //[dw_dependency="'+n.guid+'"]
         d3.select('G[dw_guid="'+ n.guid +'"] circle')
           .transition(500)
           .style('fill', 'red');
@@ -217,10 +193,8 @@ $depweb_graph.prototype.redraw = function() {
   return;
 
   var mnode = this.svg.selectAll(".node")
-      .data(self.data.nodes)
-    
-    //.exit();
-    
+      .data(self.data.nodes);
+
     mnode.append("circle")
         .attr("r", 5)
         .attr("class", "dcircle")
@@ -231,11 +205,9 @@ $depweb_graph.prototype.redraw = function() {
         .attr('class', 'textnode')
         .text(function(d) { return d.name || d.desc; });
 
-  var link = this.elements.link = this.svg.selectAll('.link') /*.call(function(d,i,e) {
-    //if(typeof d == 'undefined') d3.select(e).remove();
-  });*/
+  var link = this.elements.link = this.svg.selectAll('.link');
   var nodes = this.elements.nodes = this.svg.selectAll(".node");
-  var cnodes  = this.elements.cnodes = this.svg.selectAll(".node circle")//nodes.append("circle");
+  var cnodes  = this.elements.cnodes = this.svg.selectAll(".node circle");
   var tnodes = this.elements.tnodes = this.svg.selectAll(".node text");
 
     self.elements.link
@@ -244,6 +216,5 @@ $depweb_graph.prototype.redraw = function() {
     this.svg.selectAll(".node text")
       .attr('dw_dependencies', function(d) { return d.dependencies.join(" "); })
       .attr('dw_dependents', function(d) { return d.dependents.join(" "); });
-  //this.svg.selectAll('.link:not([dw_dependent])').remove();
   this.graph.start();
 }; // end redraw;

@@ -7,15 +7,8 @@ $dwui.preloadForm = function(jsondata, opts) {
   opts.element = opts.element || '#dw_graph';
   opts.width = opts.width || $(opts.element)[0].clientWidth;
   opts.height = opts.height || $(opts.element)[0].clientHeight;
-  //if(typeof this.form == 'undefined' || this.form == null) return;
   if(typeof jsondata == 'string') jsondata = JSON.parse(jsondata);
   if(!(jsondata instanceof Array)) return;
-  //this.opts = opts;
-  /*jsondata.forEach(function(d) {
-    d.toString = function nodeToString() {
-      return this.name + ':' + this.needs.join(','); // + ':' + Date.now();
-    }
-  })*/
   var n = new $dwui();
 
   var graph = n.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata));
@@ -26,20 +19,16 @@ $dwui.preloadForm = function(jsondata, opts) {
           var l = ko.observableArray()
           return ko.mapping.fromJS(needlist.data.list());
           return l;
-          //return new myChildModel(options.data);
       }
     }
   }
   n.ko.cneedprop = ko.observable();
-  n.ko.nodes = ko.mapping.fromJS(graph.data.nodes, mapping); //ko.observableArray(jsondata);
+  n.ko.nodes = ko.mapping.fromJS(graph.data.nodes, mapping);
   n.bind();
-  //n.ko.nodes = ;
-  //n.ko.links = ko.mapping.fromJS(graph.data.links);
   return n;
 };
 $dwui.prototype.fromJSON = function(json) {
   var self = this;
-  //var ar = JSON.parse($('#import_text').val());
   var ar = JSON.parse(json)
   this.clear();
   console.log(ar);
@@ -48,7 +37,6 @@ $dwui.prototype.fromJSON = function(json) {
     self.graph.data.addNode(n);
   });
   this.refresh();
-  //this = new $dwui.preloadForm(json, this.opts);
 };
 
 

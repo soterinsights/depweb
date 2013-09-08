@@ -16,9 +16,7 @@
     <script src="./main.js"></script>
 <style>
 html, body {
-  margin: 0px; /*5%;
-  width: 100%;
-  height: 100%;*/
+  margin: 0px;
   padding-top: 10px;
 }
 div#graph {
@@ -65,13 +63,6 @@ div#graph {
 }
 </style>
 <body>
-<!--
-  {"name": "Home"}
-  ,{"name": "Internet", "needs":["Power","Home"]}
-  ,{"name": "Power", "needs": ["Home"]}
-  ,{"name": "Dragon", "needs": ["Power"]}
-  ,{"name": "DNS", "needs":["Internet", "Dragon"]}
-  ,{"name": "Netflix", "needs":["DNS","Internet"]}-->
 <textarea style="display:none;" id="dw_text">[
   {"name": "Power", "fneeds": {"power": ["Power Grid", "Generator"]}}
   ,{"name": "Building", "needs": ["Power"]}
@@ -197,7 +188,6 @@ div#graph {
 </div> <!-- /container -->
 <div id="res" style="display: none;">
   <div class="addNeedPrompt">
-  <!--$('button.btn', this).click();-->
     <form class="form-inline" action="javascript:null;">
       <input type="text" class="input-small needname" placeholder="Node Name">
       <button type="button" class="btn" style="display:none;">Add</button>
