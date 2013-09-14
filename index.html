@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Depweb: Dependency Web graphs for the management in all of us.</title>
-    <link href="./css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="./css/bootstrap-responsive.css" rel="stylesheet">
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/knockout/2.3.0/knockout-min.js"></script>
-    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
-    <script src="http://d3js.org/d3.v3.min.js"></script>
-    <script src="./knockout.mapping-latest.js"></script>
-    <script src="./dwcore.js" type="text/javascript"></script>
-    <script src="./depweb_graph.js" type="text/javascript"></script>
-    <script src="./dwui.js" type="text/javascript"></script>
-    <script src="./js/bootstrap.min.js"></script>
-    <script src="./main.js"></script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Depweb: Dependency Web graphs for the management in all of us.</title>
+  <link href="./css/bootstrap.min.css" rel="stylesheet" media="screen">
+  <link href="./css/bootstrap-responsive.css" rel="stylesheet">
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/knockout/2.3.0/knockout-min.js"></script>
+  <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="./js/sammy.js"></script>
+  <script src="./knockout.mapping-latest.js"></script>
+  <script src="./dwcore.js" type="text/javascript"></script>
+  <script src="./depweb_graph.js" type="text/javascript"></script>
+  <script src="./dwui.js" type="text/javascript"></script>
+  <script src="./js/bootstrap.min.js"></script>
+  <script src="./main.js"></script>
 <style>
 html, body {
   margin: 0px;
@@ -41,18 +43,18 @@ div#graph {
   height: 700px;
 }
 #f_nodes {
-  font-size: .75em;
+  font-size: .8em;
 }
 #f_nodes .f_need span.f_need_remove {
-  font-size: .75em;
+  font-size: .8em;
 }
-#node_table tr td:first-child {
+.node_table > tr > td:first-child {
   text-align: right;
   padding-left: 3em;
   padding-right: 1em;
 }
-#node_table tr td span.beleted {
-  font-size: .8em;
+.node_table tr td span.beleted {
+  font-size: .7em;
 }
 .json_data {
   width: 100%;
@@ -62,8 +64,9 @@ div#graph {
   color: red;
 }
 </style>
-<body>
-<textarea style="display:none;" id="dw_text">[
+</head>
+<body><!--
+[
   {"name": "Power", "fneeds": {"power": ["Power Grid", "Generator"]}}
   ,{"name": "Building", "needs": ["Power"]}
   ,{"name": "Switch", "needs": ["Building", "Power"]}
@@ -79,7 +82,9 @@ div#graph {
   ,{"name": "Thinstations", "needs": ["Terminal Server"]}
   ,{"name": "hyper1", "needs": ["Power", "Switch", "Building"]}
   ,{"name": "hyper2", "needs": ["Power", "Switch", "Building"]}
-]</textarea>
+]
+-->
+<textarea style="display:none;" id="dw_text"></textarea>
 <div class="navbar navbar-inverse navbar-fixed-top" style="display: none;">
   <div class="navbar-inner">
     <div class="container">
@@ -102,21 +107,66 @@ div#graph {
 
 <div class="container-fluid">
   <div class="row-fluid" id="io">
-    <div class="span4">
-      <div class="navbar">
+    <div class="span4 wholenav">
+      <div class="navbar " style="font-size: .8em;">
         <div class="navbar-inner">
           <ul class="nav">
-            <li><a href="#" data-bind="click: $root.self.clear.bind($root.self)">New/Clear</a></li>
-            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'uiinputs')" >Easy</a></li>
-            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'import_adv')" >Import/Advanced</a></li>
-            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'export')" >Export</a></li>
-            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'help')" >Help</a></li>
-            <li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'about')" >About</a></li>
+            <li class="tohide"><a href="#/edit" data-bind="click: $root.self.clear.bind($root.self)">New</a></li>
+            <li class="tohide"><a href="#/edit" data-bind="click: $root.self.switch.bind($root.self, 'uiinputs')" >Create</a></li>
+            <li class="tohide"><a href="#/edit" data-bind="click: $root.self.switch.bind($root.self, 'import_adv')" >Import/Export</a></li>
+            <li class="tohide"><a href="#/edit" data-bind="click: $root.self.switch.bind($root.self, 'help')" >?</a></li>
+            <!--<li><a href="#" data-bind="click: $root.self.switch.bind($root.self, 'about')" >About</a></li>-->
+            <li class="tohide"><a href="#/list" data-bind="click: $root.self.setLocation.bind($root.self, '#/list')">Listing</a></li>
+            <li class="hider"><a href="#/edit" data-bind="click: $root.self.menuview.bind($root.self)" >Hide</a></li>
           </ul>
         </div>
       </div>
+      <div class="inputarea">
       <div class="input_methods" id="uiinputs">
+        <div id="errors"></div>
         <div id="f_nodes">
+          <div>
+            <form id="save" class="form-inline" data-bind="submit: $root.self.saveWeb.bind($root.self)" action="#/edit" method="post">
+              <table class="">
+                <tr>
+                  <td colspan="2" class="error"></td>
+                </tr>
+                <tr>
+                  <td>Graph Name</td>
+                  <td>
+                    <input type="text" name="form_save_displayname" class="input-large needname" placeholder="Display Name" />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Exposure</td>
+                  <td>
+                    <select name="form_save_exposure">
+                      <option value="unlisted">Unlisted</option>
+                      <option value="public" selected="selected">Public</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Expiration</td>
+                  <td>
+                    <select name="form_save_expiration">
+                      <option value="31536000">1 Year</option>
+                      <option value="2592000">1 Month</option>
+                      <option value="604800">1 Week</option>
+                      <option value="86400" selected="selected">1 Day</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td><button>Save</button></td>
+                </tr>
+               <!--<tr><td>New node</td><td><input type="text" class="input-small needname" placeholder="Node Name" /></td></tr>-->
+              </table>
+              <textarea class="json_data" style="display:none;" name="json" data-bind="text: $root.self.exportform()"></textarea>
+            </form>
+          </div>
+
           <script type="text/html" id="dwui_nodes">
             <tr>
               <td>
@@ -131,31 +181,60 @@ div#graph {
                   </span>
                   <span data-bind="click: $root.self.showNeedPrompt" class="addneeds">+<span>
                 </div>
-                <form class="form-inline" data-bind="submit: $root.self.addNeed.bind($root.self, node)" action="javascript:null;" style="display: none;">
+                <div>
+                <form class="form-inline" data-bind="submit: $root.self.addNeed.bind($root.self, node)" action="#/edit" method="post" style="display: none;">
                   <table>
                     <tr>
-                      <td><input type="text" class="input-small needname" placeholder="Node Name"></td>
-                      <td></td>
-                    </tr>
-                    <tr>
                       <td>
-                        <select class='needflags' data-bind="attr: {id: 'addneed' + node.guid()}">
+                        <div class="input-small input-prepend">
+                          <div class="btn-group">
+                            <div class="btn dropdown-toggle" data-toggle="dropdown">
+                              Direct
+                              <span class="caret"></span>
+                            </div>
+                            <ul class="dropdown-menu">
+                              <li onclick="dwui.updateAddNeedForm('direct', 'Direct', this)">Direct</li>
+                              <li onclick="dwui.updateAddNeedForm('failover', 'Failover', this)">Failover</li>
+                              <li onclick="dwui.updateAddNeedForm('peer', 'Peer', this)">Peer</li>
+                            </ul>
+                          </div> 
+                          <input class="input-small needname" type="text">
+                        </div>
+                      </td>
+                    </tr>
+                    <!--<tr>
+                      <td><input type="text" class="input-small needname" placeholder="Node Name" /></td>
+                    </tr>-->
+                    <tr style="display: none;" class='needserv'>
+                      <td><input class="input-medium needserv" type="text" placeholder="Failover service" /></td>
+                    </tr>
+                    <!--<tr>
+                      <td>
+                        <select class='needflags' data-bind="attr: {id: 'addneed' + node.guid()}" onchange="dwui.updateAddNeedForm(this.parentNode.parentNode.parentNode.parentNode.parentNode)">
                           <option value="fneeds">Failover</option>
                           <option value="direct" selected="selected">Direct</option>
                         </select>
                       </td>
-                      <td><label data-bind="attr: {for: 'addneed' + node.guid()}">Need type</label></td>
-                    </tr>
+                    </tr>-->
                   </table>
+                  <input type="submit" style="" value="add"/>
+                  <input class="needflags" type="hidden" value="direct" />
                 </form>
               </td>
             </tr>
           </script>
-          <table id="node_table" data-bind="template: { name: 'dwui_nodes', foreach: nodes, as: 'node' }">
+          <table id="node_table" class="node_table" data-bind="template: { name: 'dwui_nodes', foreach: nodes, as: 'node' }">
           </table>
           <div>
-            <form class="form-inline" data-bind="submit: $root.self.addNode.bind($root.self)" action="javascript:null;">
-              <input type="text" class="input-small needname" placeholder="Node Name" />
+            <form class="form-inline" data-bind="submit: $root.self.addNode.bind($root.self)" action="#/edit">
+              <table class="node_table">
+                <tr>
+                  <td>
+                    n: <input type="text" class="input-small needname" placeholder="New Node" />
+                    <button>Add</button>
+                  </td>
+                </tr>
+              </table>
             </form>
           </div>
         </div>
@@ -169,31 +248,47 @@ div#graph {
         <div></div>
       </div>
       <div class="input_methods" style="display: none;" id="help">
+        <div class="" style="" id="about">
+        <h2>About</h2>
+          <p>Depweb was imagined when a need to make a complex system easier for high level managers see and understand why seemingly unrelated system failures can severely impact email access on their smartphones or tablets.</p>
+          <p>The first attempt was done using Microsoft's Visio, but it was horrible, not interactive, unmanageable, and unreadable. There had to be a better way.</p>
+          <p>Years later a graphing library was found, D3js, which had built in force graphing capabilities and an example using the characters from Les Miserables. This caused the sparked that would later become Depweb, an interactive tool to help IT help management understand failures and risks faced.</p>
+        </div>
         <div>
+          <h2>Legend</h2>
           <p>Blue = Nodes that the selected node depend upon.</p>
           <p>Green = Nodes that depend upon the selected node.</p>
           <p>Pink = Remaining dependency path.</p>
         </div>
       </div>
-      <div class="input_methods" style="display: none;" id="about">
-        <p>Depweb was imagined when a need to make a complex system easier for high level managers see and understand why seemingly unrelated system failures can severely impact email access on their smartphones or tablets.</p>
-        <p>The first attempt was done using Microsoft's Visio, but it was horrible, not interactive, unmanageable, and unreadable. There had to be a better way.</p>
-        <p>Years later a graphing library was found, D3js, which had built in force graphing capabilities and an example using the characters from Les Miserables. This caused the sparked that would later become Depweb, an interactive tool to help IT help management understand failures and risks faced.</p>
-      </div>
     </div>
-    <div class="span8">
+    </div>
+    <div class="span8 grapharea">
       <div id="dw_graph"></div>
+      <div id="dw_list" style="display:none;">
+        <script type="text/html" id="dwui_list">
+          <li data-bind=""><span data-bind="text: listi.displayname, click: $root.self.changeWeb.bind($root.self, listi.webid)"></span></li>
+        </script>
+        <ul data-bind="template: { name: 'dwui_list', foreach: list, as: 'listi' }"></ul>
+      </div>
     </div>
   </div>
 </div> <!-- /container -->
+<!-- html resources -->
 <div id="res" style="display: none;">
   <div class="addNeedPrompt">
-    <form class="form-inline" action="javascript:null;">
+    <form class="form-inline" action="#">
       <input type="text" class="input-small needname" placeholder="Node Name">
       <button type="button" class="btn" style="display:none;">Add</button>
     </form>
   </div>
+
+  <div class="dw_alert alert">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <div class="msg"></div>
+  </div>
 </div>
+<!-- end html resources -->
 <script type="text/javascript">
   var dwui;
 </script>
