@@ -1,14 +1,21 @@
 var $depweb = function() {
   this.nodes = [];
-  //this.links = [];
   Object.defineProperty(this, "links", {enumerable:false, writable:true, value: []});
   Object.defineProperty(this, "nodesByName", {enumerable:false, writable:true, value: {}});
+  Object.defineProperty(this, "nodesByGuid", {enumerable:false, writable:true, value: {}});
   Object.defineProperty(this, "_hidden", {
     enumerable: false
     ,writable: true
     ,value: {}
-  })
+  });
 };
+$depweb.genguid = function() {
+  //http://note19.com/2007/05/27/javascript-guid-generator/
+  var S4 = function () {
+     return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+  }
+   return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+}
 $depweb.node = function node(name, group, needs) {
   var self = this;
   Object.defineProperty(this, "_hidden", {
@@ -21,14 +28,26 @@ $depweb.node = function node(name, group, needs) {
     ,writable: true
     ,value: null
   });
-  Object.defineProperty(this, "needsById", {
+  Object.defineProperty(this, "needsByIndex", {
     enumerable: false
     ,get: (function() {
       if(this.parent == null || this.parent == "") return [];
-
-      var ta = [];
+      if(typeof this._hidden.needsByIndex != 'undefined') return this._hidden.needsByIndex;
+      var ta = this._hidden.needsByIndex = [];
       for(var i in this.needs) {
-        try { ta.push(this.parent.nodesByName[this.needs[i]].nid); } catch (err) { }
+        try { ta.push(this.parent.nodesByName[this.needs[i]].index || i); } catch (err) { }
+      }
+      return ta;
+    }).bind(self)
+  });
+  Object.defineProperty(this, "needsByGuid", {
+    enumerable: false
+    ,get: (function() {
+      if(this.parent == null || this.parent == "") return [];
+      if(typeof this._hidden.needsByGuid != 'undefined') return this._hidden.needsByGuid;
+      var ta = this._hidden.needsByGuid = [];
+      for(var i in this.needs) {
+        try { ta.push(this.parent.nodesByName[this.needs[i]].guid); } catch (err) { }
       }
       return ta;
     }).bind(self)
@@ -75,10 +94,10 @@ $depweb.node.fromObj = function(obj) {
   return new $depweb.node(obj.name, obj.group, obj.needs)
 }
 $depweb.link = function(source, target) {
-  this.source = source;
-  this.target = target;
-  this.source_nid = source;
-  this.target_nid = target;
+  this.source = source.index;
+  this.target = target.index;
+  this.source_guid = source.guid;
+  this.target_nid = target.guid;
 }
 $depweb.fromArray = function(rawArray) {
   var newObj = new $depweb();
@@ -98,12 +117,13 @@ $depweb.fromArray = function(rawArray) {
 $depweb.prototype.updateLinks = function() {
   //this.links = [];
   if(typeof this._hidden.links == 'undefined') this._hidden.links = {};
-  for(var i in this.nodes) {
-    
-    var needs = this.nodes[i].needsById;
+  var nodelist = this.nodesByGuid;
+  for(var i in nodelist) {
+    //var needs = this.nodes[i].needsByIndex;
+    var needs = this.nodesBy[i].needsByGuid;
     for(var j in needs) {
-      var id = this.nodes[i].nid + ":" + this.nodes[needs[j]].nid;
-      var tlink = (new $depweb.link(this.nodes[i].nid, needs[j]));
+      var id = this.nodesByGuid[i].guid + ":" + needs[j];
+      var tlink = (new $depweb.link(this.nodesByGuid[i], this.nodesByGuid[needs[j]]));
       if(typeof this._hidden.links[id] == 'undefined') {
         this.links.push(tlink)
       }
@@ -140,24 +160,42 @@ $depweb.prototype.addNode = function(n, callback) {
     return this; //throw "error! given node is not a node";
   }
   if(typeof this.nodesByName[n.name] != 'undefined') {
-    //if(typeof callback == 'function') callback("error! This node already exists", n);
+    if(typeof callback == 'function') callback("error! This node already exists", n);
     //this.updateNode(n, callback);
     return this; //throw "error! This node already exists!";
   }
   var self = this;
-  n.nid = this.nodes.length;
+  //n.nid = this.nodes.length;
+  n.guid = n.guid || $depweb.genguid();
   n.parent = n.parent || this;
   this.nodes.push(n);
   this.nodesByName[n.name] = n;
+  this.nodesByGuid[n.guid] = n;
   n.needs.forEach(function(d) {
     try {
       if(typeof self.nodesByName[d] == 'undefined') {
-        self.addNode(new $depweb.node(d));
+        //self.addNode(new $depweb.node(d));
       }
     } catch(e) {
       //self.addNode(new $depweb.node(d));
     }
   });
+  return this;
+}
+
+$depweb.prototype.removeNode = function(n, callback) {
+  if(!(n instanceof $depweb.node)) {
+    if(typeof callback == 'function') callback("error! given node is not a node", n);
+    return this; //throw "error! given node is not a node";
+  }
+  if(typeof this.nodesByName[n.name] != 'undefined') {
+    if(typeof callback == 'function') callback("error! This node already exists", n);
+    //this.updateNode(n, callback);
+    return this; //throw "error! This node already exists!";
+  }
+  for(var i in this.data.links) {
+    //if(this.data.links[i].target_nid == n)
+  }
   return this;
 }
 
@@ -241,7 +279,7 @@ $depweb.prototype.traverseDepTree = function(nid, callback, cur_depth, max_depth
   cur_depth = cur_depth+1 || 0;
   max_depth = max_depth || 10;
   if(typeof callback != 'function') throw "[traverseDepTree needs to have a callback]";
-  var needs = this.nodes[nid].needsById;
+  var needs = this.nodes[nid].needsByIndex;
 
   for(var i in needs) {
     callback(this.nodes[needs[i]], this.nodes[nid], cur_depth);

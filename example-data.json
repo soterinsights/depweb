@@ -1,0 +1,18 @@
+[
+  {"name": "TEST"}
+  ,{"name": "Power", "fneeds": {"power": ["Power Grid", "Generator"]}}
+  ,{"name": "Building", "needs": ["Power"]}
+  ,{"name": "Switch", "needs": ["Building", "Power"]}
+  ,{"name": "Server", "needs": ["Switch","Building", "Power"]}
+  ,{"name": "Exchange (Service)", "needs": ["Server"]}
+  ,{"name": "Server HTTP/IIS", "needs": ["Server"]}
+  ,{"name": "Outlook Web/ActiveSync", "needs": ["Exchange (Service)", "Server HTTP/IIS"]}
+  ,{"name": "Phone Email", "needs": ["Outlook Web/ActiveSync", "Internet"]}
+  ,{"name": "Router", "needs": ["Building", "Power"]}
+  ,{"name": "Internet", "needs": ["ISP", "Router"]}
+  ,{"name": "Hyper-V Cluster", "fneeds": {"hvcs": ["hyper1", "hyper2"]}}
+  ,{"name": "Terminal Server", "needs": ["Hyper-V Cluster"]}
+  ,{"name": "Thinstations", "needs": ["Terminal Server"]}
+  ,{"name": "hyper1", "needs": ["Power", "Switch", "Building"]}
+  ,{"name": "hyper2", "needs": ["Power", "Switch", "Building"]}
+]

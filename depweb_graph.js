@@ -1,8 +1,31 @@
-var $depweb_graph = function(node, width, height, dataObj) {
+var $depweb_graph = function(node, width, height, dataObj, events) {
   var self = this;
   this.data = dataObj || new $dwcore();
   this.color = d3.scale.category20();
   this.callbacks = {};
+
+  for(var i in events) {
+    if(events[i] instanceof Array) {} else {
+      this.registerCallback(i, events[i]);
+    }
+  }
+  var zoom = this.zoom = d3.behavior.zoom()
+    .translate([0, 0])
+    .scale(1)
+    .scaleExtent([.1, 8])
+    .on("zoom", this.runCallback('zoomed', this));
+
+  self.svg = d3.select(node)
+    .append('svg')
+      .attr("width", width)
+      .attr("height", height)
+      .call(zoom)
+      //.attr("pointer-events", "all")
+      //append('g')
+      //.call(zoom)
+      .append('g').attr('class', 'scalergroup')
+  ;
+  //self.svg = ;
   this.graph = d3.layout.force()
     .charge(-300)
     .linkDistance(function(l) {
@@ -16,9 +39,6 @@ var $depweb_graph = function(node, width, height, dataObj) {
     })
     .size([width, height])
     .gravity(0.03);
-  this.svg = d3.select(node).append('svg')
-    .attr("width", width)
-    .attr("height", height);
 
   this.graph
     .nodes(this.data.nodes)
@@ -65,11 +85,11 @@ $depweb_graph.prototype.getCallback = function(key) {
   if(typeof this.callbacks[key] == 'undefined') this.callbacks[key] = [function(){}];
   return this.callbacks[key];
 };
-$depweb_graph.prototype.runCallback = function(key) {
+$depweb_graph.prototype.runCallback = function(key, bind) {
   var tself = this;
   return function() {
     var iself = this;
-    var args = [];
+    var args = [bind || tself];
     for(var i = 0; i < arguments.length; i++) {
       args.push(arguments[i]);
     }
@@ -160,6 +180,8 @@ $depweb_graph.prototype.redraw = function() {
     //todo move these mouse events to dwui
     .on('mouseover', self.runCallback('nodes_mouseover'))
     .on('mouseout', self.runCallback('nodes_mouseout'))
+    .on('mousedown', self.runCallback('nodes_mousedown'))
+    .on('mouseup', self.runCallback('nodes_mouseup'))
     /*.on('mouseover', function() {
       var guid = d3.select(this).attr('dw_guid').toString();
 

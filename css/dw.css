@@ -1,0 +1,88 @@
+html, body {
+  margin: 0px;
+  padding-top: 10px;
+}
+
+#dwmap {
+  top: 0px;
+  left: 0px;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: #FEFFEF;
+
+}
+.dwio {
+  /*position: fixed;
+  background: white;
+  top: 5%;
+  left: 5%;*/
+}
+
+.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: .6;
+}
+.textnode {
+  stroke: #000;
+  stroke-width: 0em;
+}
+#f_nodes {
+  font-size: .8em;
+}
+#f_nodes .f_need span.f_need_remove {
+  font-size: .8em;
+}
+.node_table > tr > td:first-child {
+  text-align: right;
+  padding-left: 3em;
+  padding-right: 1em;
+}
+.node_table tr td span.beleted {
+  font-size: .7em;
+}
+.json_data {
+  width: 100%;
+  min-height: 400px;
+}
+.itsdeadjimforreal {
+  color: red;
+}
+.tohide {
+  display: none;
+}
+.mapprops {
+  top: 30px;
+  padding: 4px;
+  position: relative;
+  display: inline-block;
+  background: #F5F5DC;
+  border-radius: 5px;
+  border: 1px solid #CDB79E;
+}
+
+.rightbar {
+  right: 0px;
+  top: 0px;
+  position: fixed;
+  display: inline-block;
+  height: 100%;
+  background: #F5F5DC;
+  padding-right: 10px;
+  border-left: 1px solid black;
+  max-width: 200px;
+}
+.rightbar div {
+  margin-top: 60px;
+}
+#about.rightbar div {
+  padding-left:20px;
+}
+#helpbar.rightbar div {
+  padding-left:20px;
+}

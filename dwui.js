@@ -3,13 +3,14 @@ var $dwui = function(opts) {
 
   if(typeof opts.graph == 'undefined') throw "[no depweb_graph defined for opts.graph]";
 
-  this.element = opts.element; // || '#dw_graph';
+  this.element = opts.element || '#dw_graph';
   //opts.width = opts.width || $(opts.element)[0].clientWidth;
   //opts.height = opts.height || $(opts.element)[0].clientHeight;
 
   this.ko = {}
   this.ko.self = this;
   this.ko.list = ko.observableArray();
+  this.ko.currentPage = ko.observable();
   this.graph = opts.graph;
   var dwself = this;
   var dwgraph = this.graph;
@@ -22,7 +23,6 @@ var $dwui = function(opts) {
       }
     }
   };*/
-
 
   this.graph.registerCallback("ontick", function() {
     var self = this;
@@ -116,7 +116,6 @@ var $dwui = function(opts) {
       .style("stroke-width", '2px');
   });
   //.bind(this.graph));
-
 };
 
 $dwui.preloadForm = function(jsondata, opts) {
@@ -128,7 +127,90 @@ $dwui.preloadForm = function(jsondata, opts) {
   if(typeof jsondata == 'string' && jsondata.length == 0) { jsondata = []; }
   if(!(jsondata instanceof Array)) return;
 
-  var graph = opts.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata));
+  //zoom
+  var zres = {
+    state: {
+      nodeclicked: false,
+      cur_translate: null,
+      cur_scale: null,
+      translate: null,
+      scale: null
+    }
+  };
+  zres.zoomed = function (dwg) {
+    /*try {
+      console.log("zoomed cur trans: %s scale: %s",
+        zres.state.cur_translate.join('/'), zres.state.cur_scale);
+    } catch(e) {}
+    try {
+      console.log("zoomed las trans: %s scale: %s",
+        zres.state.translate.join('/'), zres.state.scale);
+    } catch(e) {}*/
+
+    //zres.state.cur_translate = JSON.parse(JSON.stringify(d3.event.translate));
+    //zres.state.cur_scale = d3.event.scale;
+
+    var trans = zres.state.translate || d3.event.translate;
+    var scale = zres.state.scale || d3.event.scale;
+
+    //$('#debugger').text(sprintf('md: %s trans: %s (%s) scale: %s ()'), zres.state.nodeclicked, d3.event.translate.join())
+    /*$('#debugger').empty()
+    try { $('#debugger').append($(sprintf('<div>mouse down: %s</div>', zres.state.nodeclicked))); } catch(e) {}
+    try { $('#debugger').append($(sprintf('<div>trans sta: %s</div>', zres.state.translate.join('/')))); } catch(e) {}
+    try { $('#debugger').append($(sprintf('<div>mouse eve: %s</div>', d3.event.translate.join('/')))); } catch(e) {}
+    try { $('#debugger').append($(sprintf('<div>mouse use: %s</div>', trans.join('/')))); } catch(e) {}*/
+
+    if(zres.state.nodeclicked) return;
+    /*try {
+      if(zres.state.translate) {
+        //dwg.zoom.translate(zres.state.translate);
+        //d3.event.translate = JSON.parse(JSON.stringify(zres.state.translate));
+        zres.state.translate = null;
+      }
+    } catch (e) {}
+    try {
+      if(zres.state.scale) {
+        //dwg.zoom.scale(zres.state.scale);
+        //d3.event.scale = JSON.parse(JSON.stringify(zres.state.scale));
+        zres.state.scale = null;
+      }
+    } catch (e) {}*/
+    /*try {
+      console.log("zoomed set trans: %s scale: %s",
+        trans.join('/'), scale);
+    } catch(e) {}
+    if(zres.state.translate) {
+      //dwg.zoom.translate(zres.state.translate);
+      d3.event.translate = JSON.parse(JSON.stringify(zres.state.translate));
+      zres.state.translate = null;
+    }
+    if(zres.state.scale) {
+      //dwg.zoom.scale(zres.state.scale);
+      d3.event.scale = JSON.parse(JSON.stringify(zres.state.scale));
+      zres.state.scale = null;
+    }*/
+    //console.log('zres.zoomed', arguments)
+    dwg.svg.attr("transform", "translate(" + trans + ")scale(" + scale + ")");
+    //dwgraph.select(".state-border").style("stroke-width", 1.5 / d3.event.scale + "px");
+    //dwgraph.select(".county-border").style("stroke-width", .5 / d3.event.scale + "px");
+  };
+  var events = {
+    'zoomsetup': zres.rescale,
+    'zoomed': zres.zoomed,
+    nodes_mousedown: function() {
+      /*if(!zres.state.translate) {
+        zres.state.translate = zres.state.cur_translate;
+        zres.state.scale = zres.state.cur_scale;
+      }*/
+      zres.state.nodeclicked = true;
+    },
+    nodes_mouseup: function() {
+      zres.state.nodeclicked = false;
+    }
+  };
+
+  //end zoom
+  var graph = opts.graph = new $depweb_graph(opts.element, opts.width, opts.height, $dwcore.fromArray(jsondata), events);
   var n = new $dwui(opts);
   //n.element = opts.element;
 
@@ -148,16 +230,21 @@ $dwui.preloadForm = function(jsondata, opts) {
 };
 
 $dwui.errMsg = function(msg, pel) {
-  pel = pel || $('#errors');
-  pel.append($('#res .dw_alert').clone());
-  $('.dw_alert .msg', pel).text(msg);
+  pel = pel || $('#dwerrors');
+  pel.append($('#res .dwalert').clone());
+  $('.dwalert .msg', pel).text(msg);
 };
+
+$dwui.prototype.importJSON = function(elid) {
+  //console.log(arguments);
+  //console.log(JSON.parse($(elid).val()))
+  this.fromJSON($(elid).val());
+}
 
 $dwui.prototype.fromJSON = function(json) {
   var self = this;
   var ar = JSON.parse(json)
   this.clear(true);
-  //console.log(ar);
   ar.forEach(function(d) {
     var n = new $dwcore.node(d.name, d);
     self.graph.data.addNode(n);
@@ -207,15 +294,15 @@ $dwui.prototype.addNeed = function(n, f) {
   needname.val('');
 };
 $dwui.prototype.updateAddNeedForm = function(serv, fname, el) {
-  
-  var p = el;
+  var p = el; //parent element for this
   while(p.tagName != 'FORM') {
     p = p.parentNode;
   }
-  $('button', p).text(fname);
-  $('')
+  //$('button', p).text(fname);
+  $('.dropdown-value', p).text(fname);
   var l = $('.needflags', p);
   l.val(serv);
+
   if(serv == 'direct') {
     $('tr.needserv', p).hide();
   } else {
@@ -232,7 +319,7 @@ $dwui.prototype.addNode = function(f) {
   this.graph.data.addNode(newnodes);
   this.refresh();
   el.val('');
-  this.setLocation('#/edit');
+  //this.setLocation('#/edit');
   return;
 }
 
@@ -299,7 +386,7 @@ $dwui.prototype.clear = function(skip) {
   });
   if((typeof skip == 'boolean' && !skip) || typeof skip != 'boolean')  Sammy.apps.body.setLocation('#');
   this.refresh();
-  this.setLocation('#/edit');
+  //this.setLocation('#/edit');
 };
 $dwui.prototype.switch = function() {
   var t, u, o, e;
@@ -320,7 +407,7 @@ $dwui.prototype.switch = function() {
 $dwui.prototype.refresh = function() {
   this.graph.data.updateLinks();
   ko.mapping.fromJS(this.graph.data.nodes, this.ko.nodes);
-  d3.selectAll('svg *').remove();
+  d3.selectAll('svg g *').remove();
   this.graph.redraw();
 };
 
@@ -336,30 +423,28 @@ $dwui.prototype.checkTreeDead = function(n) {
   return this.graph.data.nodesByGuid[n.guid()].isTreeDead;
 };
 
-$dwui.prototype.menuview = function() {
-  if($(".wholenav").hasClass('span4')) {
-    $(".wholenav").removeClass('span4').addClass('span1');
-    $('.inputarea, .nav .tohide').hide();
-    $('.hider a').text("Show");
+$dwui.prototype.menuview = function(hide) {
+  if(!$('.tabpages').is(":hidden") || (typeof hide == 'boolean' && hide)) {
+    $('.tabpages').hide(200)
+    //$('.tohide').hide(200)
   } else {
-    $(".wholenav").removeClass('span1').addClass('span4');
-    $('.inputarea, .nav .tohide').show();
-    $('.hider a').text("Hide");
+    $('.tabpages').show(200)
+    //$('.tohide').show(200)
+    //$('.tabexpander').text('<=')
   }
-
-  if($(".grapharea").hasClass('span8')) {
-    $(".grapharea").removeClass('span8').addClass('span11');
-  } else {
-    $(".grapharea").removeClass('span11').addClass('span8');
-  }
-  var gsize = this.graph.graph.size();
-  var el = $(this.element)[0]
-  gsize[0] = el.clientWidth;
-  this.graph.graph.size(gsize);
-  this.graph.svg.attr('width', gsize[0]).attr('height', gsize[1]);
-  this.refresh();
+  //$('.tabexpander span').toggleClass('icon-circle-arrow-left icon-circle-arrow-right');
 };
 
 $dwui.prototype.setLocation = function(loc) {
   Sammy.apps.body.setLocation(loc);
 };
+//proto for new display swicth
+/*(function() {
+  var $p = $dwui.prototype;
+
+  $p.hideUI = function () {};
+
+  $p.displayEditor = function() {};
+
+  $p.displayList = function () {};
+})();*/
